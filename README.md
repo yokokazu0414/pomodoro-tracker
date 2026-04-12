@@ -13,10 +13,20 @@
 
 当初の検討では **IndexedDB（Dexie）＋オフライン** を想定していたが、実装では **Firebase に変更**した。ローカル専用の `lib/db.ts`（Dexie）は削除済みである。
 
+## Firebase 設定（秘密はコミットしない）
+
+1. `.env.example` をコピーして **`.env.local`** を作成する。
+2. [Firebase Console](https://console.firebase.google.com/) → **プロジェクトの設定** → **マイアプリ** → Web の設定から、各 `VITE_*` に値を入れる。
+3. **`VITE_FIRESTORE_DATABASE_ID`** は、Firestore の「データベース ID」（AI Studio 連携などでは名前付き ID になることがある）。デフォルト DB なら通常 `(default)`。
+
+ビルド・開発サーバーは Vite が `.env.local` を読み込む。
+
+**API キーがリポジトリに含まれていた場合**は [SECURITY.md](./SECURITY.md) に従い **キーをローテーション**すること。
+
 ## 前提
 
 - Node.js 18+（推奨: 20 系）
-- Firebase プロジェクトと、クライアント用設定（本リポジトリでは `firebase-applet-config.json` を参照）
+- Firebase プロジェクトと上記 `.env.local`
 - Firestore のセキュリティルールは `firestore.rules` をデプロイすること（ユーザー本人のみ read/write 可）
 
 ## セットアップ
@@ -24,9 +34,9 @@
 ```bash
 cd apps/08_pomodoro-tracker
 npm install
+cp .env.example .env.local
+# .env.local を編集して Firebase の値を設定
 ```
-
-Firebase の Web アプリ設定を `firebase-applet-config.json` に配置する（またはプロジェクトの既定の読み込み方法に合わせて `lib/firebase.ts` を調整する）。
 
 ## 開発
 
@@ -57,7 +67,6 @@ npm run lint
 ## 注意
 
 - スマホの LINE 等のアプリ内ブラウザでは Google ログインが失敗することがある。**Safari / Chrome** で開くこと（アプリ内の案内文と同じ）。
-- `GEMINI_API_KEY` 等は **未使用**。旧テンプレートの記述は削除済みである。
 
 ## 関連ドキュメント
 

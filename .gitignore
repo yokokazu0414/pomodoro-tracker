@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# 旧形式の平文設定（秘密を含むためコミット禁止）
+firebase-applet-config.json
