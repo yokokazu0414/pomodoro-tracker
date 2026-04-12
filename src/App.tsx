@@ -15,6 +15,7 @@ import {
   loginWithGoogleViaPopup,
   logout,
   consumeGoogleRedirectResultOnce,
+  describeGoogleSignInStrategy,
   isRunningInIframe,
 } from '@/lib/firebase';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
@@ -174,6 +175,11 @@ export default function App() {
           <p className="text-xs text-rose-800/50 mt-4">
             ※スマホは <strong>LINE / Instagram / X 等の内蔵ブラウザではなく</strong>、Safari または Chrome
             で開いてください。「The requested action is invalid」は多くの場合これが原因です。
+          </p>
+          <p className="text-[10px] text-center text-rose-400/90 font-mono break-all leading-relaxed pt-2 border-t border-rose-100">
+            build={import.meta.env.VITE_BUILD_TAG || 'dev'} · signIn=
+            {describeGoogleSignInStrategy()} · authDomain=
+            {import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '?'}
           </p>
         </div>
       </div>

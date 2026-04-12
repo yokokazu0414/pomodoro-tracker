@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID: string;
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
   readonly VITE_FIRESTORE_DATABASE_ID: string;
+  /** デプロイ時に付与（未設定時はビルドに含まれない） */
+  readonly VITE_BUILD_TAG?: string;
 }
 
 interface ImportMeta {

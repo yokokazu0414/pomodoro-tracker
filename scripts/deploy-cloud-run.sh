@@ -12,6 +12,9 @@ set -a
 source .env.local
 set +a
 
+# ビルドごとに埋め込み、画面で「最新デプロイか」を確認できるようにする
+export VITE_BUILD_TAG="${VITE_BUILD_TAG:-$(git rev-parse --short HEAD 2>/dev/null || echo nodist)-$(date -u +%Y%m%d-%H%M%S)}"
+
 npm ci
 npm run build
 

@@ -164,6 +164,15 @@ export function loginWithGoogle(): Promise<void> {
   })();
 }
 
+/** ログイン画面のデバッグ表示用（本番でも Firebase 設定の取り違え検知に使う） */
+export function describeGoogleSignInStrategy(): 'redirect' | 'popup' {
+  if (typeof window === 'undefined') return 'popup';
+  if (isRunningInIframe()) return 'popup';
+  const useRedirectFirst =
+    shouldPreferGoogleRedirectAuth() && !isIOSWebKitSafariBrowser();
+  return useRedirectFirst ? 'redirect' : 'popup';
+}
+
 export const logout = async () => {
   try {
     await signOut(auth);
