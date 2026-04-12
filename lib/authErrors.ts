@@ -41,6 +41,26 @@ export function formatFirebaseAuthHelp(err: unknown): string {
     lines.push('');
   }
 
+  if (
+    code.includes('requests-from-referer') ||
+    message.includes('requests-from-referer') ||
+    message.includes('are-blocked.') && message.includes('referer')
+  ) {
+    lines.push('', '【auth/requests-from-referer … are-blocked（ローカル / 別ポート）】');
+    lines.push(
+      'ブラウザ用 API キーの「HTTP リファラー」に、今アプリを開いている URL のオリジンが入っていません。',
+    );
+    lines.push('1) Google Cloud Console → API とサービス → 認証情報');
+    lines.push('2) Firebase の「ウェブ API キー」と同じキー（Browser key）を開く');
+    lines.push('3) アプリケーションの制限 → HTTP リファラー（ウェブサイト）');
+    lines.push(`4) 次を追加して保存: ${origin}/*`);
+    lines.push('   別ポートで試すたびに、そのオリジンごとに 1 行必要（例: http://localhost:3000/* と http://localhost:3001/* は別）。');
+    lines.push('5) 保存後、数分待ってからページを再読み込みして再試行。');
+    lines.push('');
+    lines.push('※ Firebase Console → Authentication → 設定 → 承認済みドメイン に localhost があることは別要件（こちらは満たしていても API キー側でブロックされます）。');
+    lines.push('');
+  }
+
   if (code === 'auth/network-request-failed') {
     lines.push('', '【auth/network-request-failed（通信失敗）】');
     lines.push(
