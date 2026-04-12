@@ -17,9 +17,8 @@ import {
   consumeGoogleRedirectResultOnce,
   isRunningInIframe,
 } from '@/lib/firebase';
-import { shouldPreferGoogleRedirectAuth } from '@/lib/browserEnv';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
-import { isLikelyInAppBrowser } from '@/lib/browserEnv';
+import { isLikelyInAppBrowser, shouldPreferGoogleRedirectAuth } from '@/lib/browserEnv';
 import {
   onAuthStateChanged,
   setPersistence,
