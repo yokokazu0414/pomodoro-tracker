@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { formatFirebaseAuthHelp, getAuthErrorCode } from '@/lib/authErrors';
+import { shouldPreferGoogleRedirectAuth } from '@/lib/browserEnv';
 
 function requireEnv(name: keyof ImportMetaEnv): string {
   const v = import.meta.env[name];
@@ -69,7 +70,8 @@ let authLoginInFlight = false;
 
 /**
  * Google ログイン。
- * まずポップアップ（設定ミス時に Google のエラーが見えやすい）→ ブロック時のみフルリダイレクト。
+ * デスクトップ: ポップアップ優先 → ブロック時のみリダイレクト。
+ * モバイル: ポップアップ経由の firebaseapp.com/__/auth/handler?authType=signInViaPopup が不安定なためリダイレクト優先。
  * Cloud Run 等は Firebase「承認済みドメイン」＋ GCP の OAuth「JavaScript 生成元」にオリジンが必要。
  */
 export async function loginWithGoogle(): Promise<void> {
@@ -79,6 +81,14 @@ export async function loginWithGoogle(): Promise<void> {
   authLoginInFlight = true;
   try {
     await setPersistence(auth, browserLocalPersistence);
+
+    const useRedirectFirst =
+      !isRunningInIframe() && shouldPreferGoogleRedirectAuth();
+
+    if (useRedirectFirst) {
+      await signInWithRedirect(auth, googleProvider);
+      return;
+    }
 
     try {
       await signInWithPopup(auth, googleProvider);

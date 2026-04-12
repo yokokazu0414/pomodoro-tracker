@@ -84,6 +84,7 @@ Firebase（Identity Platform）の **承認済みドメイン** と、Google Clo
 
 上記を直したあとでも、次が当てはまる場合がある。
 
+- **handler の URL に付いている `apiKey=` が、Google Cloud の「API キー」一覧に存在しない**（ローテーション後も古いビルドが Cloud Run に残っている）→ `.env.local` の `VITE_FIREBASE_API_KEY` を現在のキーに合わせ、**イメージを再ビルドして再デプロイ**する。
 - **LINE・Instagram・X 等のアプリ内ブラウザ** から開いている（埋め込み WebView では Google が拒否することがある）→ Safari / Chrome で URL を直接開く。
 - **OAuth 同意画面がテストモード**で、自分の Google アカウントが **テストユーザー** に入っていない（Google Cloud Console → OAuth 同意画面）。
 
