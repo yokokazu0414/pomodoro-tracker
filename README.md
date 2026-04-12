@@ -23,6 +23,29 @@
 
 **API キーがリポジトリに含まれていた場合**は [SECURITY.md](./SECURITY.md) に従い **キーをローテーション**すること。
 
+### Firebase Console で「Authentication（認証）」メニューが見つからない場合
+
+新しいコンソール UI では、左サイドバーに **Authentication** が常時表示されないことがある。
+
+1. **プロジェクトを確認**  
+   画面上部のプロジェクト名が **このアプリの Firebase プロジェクト**（`.env` の `VITE_FIREBASE_PROJECT_ID` と同じ）か確認する。「My First Project」など別プロジェクトを開いていると、メニューも設定も別になる。
+
+2. **検索**  
+   画面上部の **検索バー**（虫眼鏡）で **`認証`** または **`Authentication`** と入力し、**Authentication** を選ぶ。
+
+3. **直リンク（確実）**  
+   ブラウザのアドレス欄に次を開く（`<プロジェクトID>` を自分の ID に置き換え）:
+
+   `https://console.firebase.google.com/project/<プロジェクトID>/authentication/users`
+
+   例: プロジェクト ID が `abstract-botany-438907-v2` なら  
+   `https://console.firebase.google.com/project/abstract-botany-438907-v2/authentication/users`
+
+4. **まだ無い場合**  
+   初回のみ **Authentication を有効化**する必要がある。左の **構築（Build）** や **プロダクトのカテゴリ** を開き、**Authentication / 認証** を追加するか、Firebase の「始める」ウィザードから **Authentication** をオンにする。
+
+「設定」タブ（歯車）→ **承認済みドメイン** は、上記の Authentication 画面の **設定** から開く。
+
 ### Cloud Run / 独自ドメインでログインできない場合
 
 スクリーンショットのような **`*.run.app`** や独自ドメインでホストしているとき、**ログイン用ウィンドウがすぐ閉じる**ことがある。次を両方満たすこと。
