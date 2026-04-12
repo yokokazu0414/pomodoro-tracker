@@ -47,11 +47,19 @@ export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 /** React Strict Mode 等で getRedirectResult が二重に走ると挙動が壊れるため、1 ページロードにつき 1 回だけ */
-let redirectResultOnce: ReturnType<typeof getRedirectResult> | null = null;
+let redirectResultOnce: Promise<Awaited<ReturnType<typeof getRedirectResult>>> | null =
+  null;
 
 export function consumeGoogleRedirectResultOnce() {
   if (!redirectResultOnce) {
-    redirectResultOnce = getRedirectResult(auth);
+    redirectResultOnce = (async () => {
+      // モバイルで Google から戻った直後は通信スタックが立ち上がる前に getRedirectResult が走り
+      // auth/network-request-failed になりやすいため、わずかに遅らせる。
+      if (typeof window !== 'undefined' && shouldPreferGoogleRedirectAuth()) {
+        await new Promise((r) => setTimeout(r, 450));
+      }
+      return getRedirectResult(auth);
+    })();
   }
   return redirectResultOnce;
 }

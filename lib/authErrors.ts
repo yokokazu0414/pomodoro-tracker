@@ -41,6 +41,19 @@ export function formatFirebaseAuthHelp(err: unknown): string {
     lines.push('');
   }
 
+  if (code === 'auth/network-request-failed') {
+    lines.push('', '【auth/network-request-failed（通信失敗）】');
+    lines.push(
+      'Firebase 認証サーバー（identitytoolkit.googleapis.com 等）への HTTPS が届いていません。',
+    );
+    lines.push('① 電波・Wi‑Fi を確認し、機内モードのオンオフを試す');
+    lines.push('② VPN・広告ブロック・企業フィルタ・iCloud プライベートリレーを一時オフ');
+    lines.push('③ iPhone: 設定 → モバイル通信 → 低データモード / 省データをオフにする');
+    lines.push('④ Safari でダメなら Chrome を試す（LINE 等の内蔵ブラウザではなくトップレベルで）');
+    lines.push('⑤ しばらく待ってから「Sign in with Google」を再度押す');
+    lines.push('');
+  }
+
   if (
     code === 'auth/unauthorized-domain' ||
     code === 'auth/operation-not-allowed' ||

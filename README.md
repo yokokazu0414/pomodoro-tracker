@@ -88,6 +88,10 @@ Firebase（Identity Platform）の **承認済みドメイン** と、Google Clo
 - **LINE・Instagram・X 等のアプリ内ブラウザ** から開いている（埋め込み WebView では Google が拒否することがある）→ Safari / Chrome で URL を直接開く。
 - **OAuth 同意画面がテストモード**で、自分の Google アカウントが **テストユーザー** に入っていない（Google Cloud Console → OAuth 同意画面）。
 
+### `auth/network-request-failed`（スマホで多い）
+
+認証 API への HTTPS が失敗したときのコードである。VPN・広告ブロック・**iCloud プライベートリレー**・**低データモード**・職場/学校 Wi‑Fi のフィルタが原因になりやすい。オフにするか別回線・Chrome で試す。
+
 ## 前提
 
 - Node.js 18+（推奨: 20 系）
