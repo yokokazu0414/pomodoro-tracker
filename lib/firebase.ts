@@ -11,7 +11,7 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { formatFirebaseAuthHelp, getAuthErrorCode } from '@/lib/authErrors';
-import { shouldPreferGoogleRedirectAuth } from '@/lib/browserEnv';
+import { isIOSWebKitSafariBrowser, shouldPreferGoogleRedirectAuth } from '@/lib/browserEnv';
 
 function requireEnv(name: keyof ImportMetaEnv): string {
   const v = import.meta.env[name];
@@ -116,8 +116,11 @@ export function loginWithGoogle(): Promise<void> {
   }
   authLoginInFlight = true;
 
+  // iOS Safari のみリダイレクトを使わずポップアップ（Chrome iOS は CriOS がありリダイレクト維持）
   const useRedirectFirst =
-    !isRunningInIframe() && shouldPreferGoogleRedirectAuth();
+    !isRunningInIframe() &&
+    shouldPreferGoogleRedirectAuth() &&
+    !isIOSWebKitSafariBrowser();
   const provider = createGoogleProvider();
 
   if (useRedirectFirst) {
@@ -133,16 +136,19 @@ export function loginWithGoogle(): Promise<void> {
   }
 
   return (async () => {
+    const popupProvider = new GoogleAuthProvider();
+    popupProvider.setCustomParameters({ prompt: 'select_account' });
     try {
       await setPersistence(auth, browserLocalPersistence);
       try {
-        await signInWithPopup(auth, provider);
+        await signInWithPopup(auth, popupProvider);
       } catch (first: unknown) {
         const code = getAuthErrorCode(first);
         if (
           code === 'auth/popup-blocked' ||
           code === 'auth/cancelled-popup-request'
         ) {
+          void setPersistence(auth, browserLocalPersistence);
           await signInWithRedirect(auth, createGoogleProvider());
           return;
         }

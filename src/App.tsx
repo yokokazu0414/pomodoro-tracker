@@ -18,7 +18,11 @@ import {
   isRunningInIframe,
 } from '@/lib/firebase';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
-import { isLikelyInAppBrowser, shouldPreferGoogleRedirectAuth } from '@/lib/browserEnv';
+import {
+  isIOSWebKitSafariBrowser,
+  isLikelyInAppBrowser,
+  shouldPreferGoogleRedirectAuth,
+} from '@/lib/browserEnv';
 import {
   onAuthStateChanged,
   setPersistence,
@@ -54,9 +58,9 @@ export default function App() {
     void (async () => {
       try {
         // リダイレクト復帰時は先に OAuth 結果を処理（Safari で setPersistence より前が安定する事例あり）
-        await consumeGoogleRedirectResultOnce();
+        const redirectCred = await consumeGoogleRedirectResultOnce();
         await setPersistence(auth, browserLocalPersistence);
-        setUser(auth.currentUser);
+        setUser(redirectCred?.user ?? auth.currentUser);
       } catch (err: unknown) {
         console.error('[Auth] getRedirectResult', err);
         alert(formatFirebaseAuthHelp(err));
@@ -89,7 +93,8 @@ export default function App() {
     typeof window !== 'undefined' &&
     !inAppBrowser &&
     !isRunningInIframe() &&
-    shouldPreferGoogleRedirectAuth();
+    shouldPreferGoogleRedirectAuth() &&
+    !isIOSWebKitSafariBrowser();
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-[#fff5f5]">Loading...</div>;
