@@ -29,19 +29,94 @@ export default function App() {
     let unsubscribe: (() => void) | undefined;
     // authStateReady / getRedirectResult が稀に未解決のまま止まる環境があるため、必ず UI を開放する
     const safetyTimer = window.setTimeout(() => {
+      // #region agent log
+      fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
+        body: JSON.stringify({
+          sessionId: 'e5af57',
+          location: 'App.tsx:safetyTimer',
+          message: '12s safety fired (await may be hung)',
+          data: { via: 'safety' },
+          timestamp: Date.now(),
+          hypothesisId: 'H4',
+          runId: 'verify',
+        }),
+      }).catch(() => {});
+      // #endregion
       setLoading(false);
     }, 12000);
 
     void (async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
+        body: JSON.stringify({
+          sessionId: 'e5af57',
+          location: 'App.tsx:init',
+          message: 'auth bootstrap start',
+          data: {},
+          timestamp: Date.now(),
+          hypothesisId: 'H0',
+          runId: 'verify',
+        }),
+      }).catch(() => {});
+      // #endregion
       try {
         // リダイレクト復帰時は先に OAuth 結果を処理（Safari で setPersistence より前が安定する事例あり）
         await consumeGoogleRedirectResultOnce();
+        // #region agent log
+        fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
+          body: JSON.stringify({
+            sessionId: 'e5af57',
+            location: 'App.tsx:afterRedirect',
+            message: 'consumeGoogleRedirectResultOnce resolved',
+            data: {},
+            timestamp: Date.now(),
+            hypothesisId: 'H1',
+            runId: 'verify',
+          }),
+        }).catch(() => {});
+        // #endregion
         await setPersistence(auth, browserLocalPersistence);
+        // #region agent log
+        fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
+          body: JSON.stringify({
+            sessionId: 'e5af57',
+            location: 'App.tsx:afterPersistence',
+            message: 'setPersistence resolved',
+            data: {},
+            timestamp: Date.now(),
+            hypothesisId: 'H2',
+            runId: 'verify',
+          }),
+        }).catch(() => {});
+        // #endregion
         setUser(auth.currentUser);
       } catch (err: unknown) {
         console.error('[Auth] getRedirectResult', err);
         alert(formatFirebaseAuthHelp(err));
       } finally {
+        // #region agent log
+        fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
+          body: JSON.stringify({
+            sessionId: 'e5af57',
+            location: 'App.tsx:finally',
+            message: 'auth bootstrap finally (loading off)',
+            data: {},
+            timestamp: Date.now(),
+            hypothesisId: 'H3',
+            runId: 'verify',
+          }),
+        }).catch(() => {});
+        // #endregion
         window.clearTimeout(safetyTimer);
         setLoading(false);
       }
