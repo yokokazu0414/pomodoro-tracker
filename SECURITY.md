@@ -4,6 +4,13 @@
 
 `firebase-applet-config.json` に **Google API Key** がリポジトリに含まれていた事案に対し、次を実施すること。
 
+### 実施済み（2026-04-12）
+
+- **旧キー**（`Browser key (auto created by Firebase)`）は Google Cloud で **削除**済み（無効化）。
+- **新キー**を同一プロジェクトに **新規作成**し、Firebase 向け API 制限を旧キーと同等に付与した。
+- ローカル開発用の **`.env.local`** の `VITE_FIREBASE_API_KEY` を **新キー**に更新済み（Git には含めない）。
+- **本番・CI**（Vercel / Cloud Run 等）に環境変数を設定している場合は、**同じ新キー**に更新すること。
+
 ### 1. キーのローテーション（必須）
 
 1. [Google Cloud Console](https://console.cloud.google.com/) → 対象プロジェクト → **API とサービス** → **認証情報**
