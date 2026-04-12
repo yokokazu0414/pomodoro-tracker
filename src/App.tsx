@@ -10,20 +10,35 @@ import { Dashboard } from '@/components/Dashboard';
 import { DataManagement } from '@/components/DataManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { auth, loginWithGoogle, logout } from '@/lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
     });
+
+    getRedirectResult(auth).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[Auth] getRedirectResult', err);
+      alert(
+        `ログインに失敗しました: ${msg}\nFirebase Console → Authentication → 設定 → 承認済みドメイン に現在のホスト（例: localhost / 本番ドメイン）を追加してください。`,
+      );
+    });
+
     return () => unsubscribe();
   }, []);
+
+  const handleLogin = () => {
+    setSigningIn(true);
+    void loginWithGoogle().finally(() => setSigningIn(false));
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-[#fff5f5]">Loading...</div>;
@@ -36,11 +51,17 @@ export default function App() {
           <div className="text-6xl drop-shadow-sm" role="img" aria-label="tomato">🍅</div>
           <h1 className="text-3xl font-extrabold tracking-tight text-rose-600">Pomodoro Tracker</h1>
           <p className="text-rose-800/70 font-medium">Please sign in to sync your sessions across devices.</p>
-          <Button onClick={loginWithGoogle} className="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl py-6 text-lg font-semibold">
-            Sign in with Google
+          <p className="text-sm text-rose-700/80">ボタンを押すと Google のログイン画面へ移動します（ポップアップは使いません）。</p>
+          <Button
+            type="button"
+            onClick={handleLogin}
+            disabled={signingIn}
+            className="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl py-6 text-lg font-semibold"
+          >
+            {signingIn ? '移動中…' : 'Sign in with Google'}
           </Button>
           <p className="text-xs text-rose-800/50 mt-4">
-            ※スマホでログインエラーになる場合は、LINE等のアプリ内ブラウザではなく、SafariやChromeで開いてください。
+            ※LINE等のアプリ内ブラウザではなく、SafariやChromeで開いてください。移動しない場合はポップアップブロックではなく、Firebase の承認済みドメインを確認してください。
           </p>
         </div>
       </div>

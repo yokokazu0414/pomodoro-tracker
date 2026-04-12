@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   setPersistence,
   browserLocalPersistence,
@@ -38,20 +38,25 @@ export const auth = getAuth(app);
 export const db = getFirestore(app, firestoreDatabaseId);
 
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export const loginWithGoogle = async () => {
+/**
+ * Google ログイン（フルページリダイレクト）。
+ * ポップアップブロックや Safari 等で「押しても何も起きない」問題を避ける。
+ */
+export async function loginWithGoogle(): Promise<void> {
   try {
     await setPersistence(auth, browserLocalPersistence);
-    await signInWithPopup(auth, googleProvider);
+    await signInWithRedirect(auth, googleProvider);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('Error signing in with Google', error);
     alert(
-      'ログインに失敗しました。スマホの場合は、LINEなどのアプリ内ブラウザではなく、SafariやChromeで開いてお試しください。\n' +
+      'ログインに失敗しました。Firebase の「承認済みドメイン」にこの URL を追加しているか確認してください。\n' +
         message,
     );
   }
-};
+}
 
 export const logout = async () => {
   try {
