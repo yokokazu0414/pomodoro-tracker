@@ -22,14 +22,16 @@ export function formatFirebaseAuthHelp(err: unknown): string {
     message.includes('unauthorized')
   ) {
     lines.push('', '【対処・Cloud Run / 独自URL の場合】');
-    lines.push('1) Firebase Console → Authentication → 設定 → 承認済みドメイン');
-    lines.push(`   に次の「ホスト名だけ」を追加: ${host}`);
+    lines.push('1) Firebase の承認済みドメインに既に入っている場合でも、次は別設定。');
     lines.push('');
     lines.push('2) Google Cloud Console → API とサービス → 認証情報');
     lines.push('   →「OAuth 2.0 クライアント ID」で Web クライアントを開く');
     lines.push(`   →「承認済みの JavaScript 生成元」に追加: ${origin}`);
     lines.push('');
-    lines.push('3) 保存後、数分待ってからブラウザを再読み込みして再試行。');
+    lines.push('3) 同じ「認証情報」の「API キー」でブラウザキーを開き、');
+    lines.push(`   リファラー制限に ${origin}/* が含まれるか確認（キー再生成後に漏れがち）。`);
+    lines.push('');
+    lines.push('4) 保存後、数分待ってからブラウザを再読み込みして再試行。');
   }
 
   return lines.join('\n');

@@ -58,6 +58,23 @@
 
 保存後、数分待ってから再試行する。
 
+### 承認済みドメインは元から入っているのに、ウィンドウがすぐ閉じる場合
+
+Firebase（Identity Platform）の **承認済みドメイン** と、Google Cloud の **OAuth / API キー** の設定は **別物**である。ドメインが揃っていても、次が不足していると同じ症状になる。
+
+1. **OAuth 2.0 クライアント（ウェブ）の「承認済みの JavaScript 生成元」**  
+   [Google Cloud Console](https://console.cloud.google.com/) → **API とサービス** → **認証情報** → 種別が **ウェブ クライアント** の OAuth クライアントを開き、  
+   `https://pomodoro-tracker-267724445152.us-west1.run.app`  
+   が **JavaScript 生成元** に含まれているか確認する（Firebase のドメイン一覧だけでは足りない）。
+
+2. **ブラウザ用 API キーの「アプリケーションの制限」**  
+   キーをローテーションしたあと、**HTTP リファラー（ウェブサイト）** に  
+   `https://pomodoro-tracker-267724445152.us-west1.run.app/*`  
+   を含めているか確認する。`localhost` や `*.firebaseapp.com` だけだと、Cloud Run のオリジンからの呼び出しが拒否されることがある。
+
+3. **ブラウザの開発者ツール（F12）→ Console / Network**  
+   ログイン直後に `400` / `403` / `API key not valid` / `idpiframe` などが出ていないか確認する。表示されたエラー文が次の手掛かりになる。
+
 ## 前提
 
 - Node.js 18+（推奨: 20 系）
