@@ -81,47 +81,56 @@ let authLoginInFlight = false;
  * Google ログイン。
  * デスクトップ: ポップアップ優先 → ブロック時のみリダイレクト。
  * モバイル: リダイレクト優先。
+ *
+ * iOS Safari では `async` 関数経由だとクリックのユーザージェスチャーが切れ、
+ * `signInWithRedirect` が画面遷移を開始しない（無言で戻る）ことがあるため、
+ * リダイレクト優先経路では **同期的に** `signInWithRedirect` を呼ぶ（`await` しない）。
  */
-export async function loginWithGoogle(): Promise<void> {
+export function loginWithGoogle(): Promise<void> {
   if (authLoginInFlight) {
-    return;
+    return Promise.resolve();
   }
   authLoginInFlight = true;
-  try {
-    const useRedirectFirst =
-      !isRunningInIframe() && shouldPreferGoogleRedirectAuth();
-    const provider = createGoogleProvider();
 
-    // モバイル: setPersistence を await しない（ユーザー起動が先に失効しやすい）。
-    // signInWithRedirect はそのまま await してエラーと「移動中」UI を正しく扱う。
-    if (useRedirectFirst) {
-      await signInWithRedirect(auth, provider);
-      return;
-    }
+  const useRedirectFirst =
+    !isRunningInIframe() && shouldPreferGoogleRedirectAuth();
+  const provider = createGoogleProvider();
 
-    await setPersistence(auth, browserLocalPersistence);
-
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (first: unknown) {
-      const code = getAuthErrorCode(first);
-      if (
-        code === 'auth/popup-blocked' ||
-        code === 'auth/cancelled-popup-request'
-      ) {
-        await signInWithRedirect(auth, createGoogleProvider());
-        return;
-      }
-      console.error('signInWithPopup', first);
-      alert(formatFirebaseAuthHelp(first));
-      return;
-    }
-  } catch (error: unknown) {
-    console.error('Error signing in with Google', error);
-    alert(formatFirebaseAuthHelp(error));
-  } finally {
-    authLoginInFlight = false;
+  if (useRedirectFirst) {
+    return signInWithRedirect(auth, provider)
+      .catch((error: unknown) => {
+        console.error('Error signing in with Google', error);
+        alert(formatFirebaseAuthHelp(error));
+      })
+      .finally(() => {
+        authLoginInFlight = false;
+      });
   }
+
+  return (async () => {
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (first: unknown) {
+        const code = getAuthErrorCode(first);
+        if (
+          code === 'auth/popup-blocked' ||
+          code === 'auth/cancelled-popup-request'
+        ) {
+          await signInWithRedirect(auth, createGoogleProvider());
+          return;
+        }
+        console.error('signInWithPopup', first);
+        alert(formatFirebaseAuthHelp(first));
+      }
+    } catch (error: unknown) {
+      console.error('Error signing in with Google', error);
+      alert(formatFirebaseAuthHelp(error));
+    } finally {
+      authLoginInFlight = false;
+    }
+  })();
 }
 
 export const logout = async () => {
