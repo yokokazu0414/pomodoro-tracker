@@ -1,13 +1,6 @@
-# Cloud Run: build-time に --set-build-env-vars で渡した VITE_* が npm run build に効く
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY . .
-ENV NODE_ENV=production
-RUN npm run build
-
+# dist はデプロイ前にローカル（または CI）で `npm run build` 済みであること。
+# Cloud Build 上の Vite に VITE_* を渡すより、.env.local を使ったビルド成果物を焼く方が確実。
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY dist /usr/share/nginx/html
 EXPOSE 8080

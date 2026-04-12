@@ -130,6 +130,10 @@ npm run lint
 
 前提: `gcloud` ログイン済み、プロジェクト `abstract-botany-438907-v2`、`.env.local` に `VITE_*` と `VITE_FIRESTORE_DATABASE_ID` が入っている。
 
+スクリプトは **ローカルで `npm run build`**（`.env.local` を Vite が読む）してから `dist` を含めて Cloud Build が nginx イメージを作る。Cloud 上で Vite を回す方式より `VITE_*` の取り違えが起きにくい。
+
+**注意:** デフォルトでは `.gitignore` の `dist/` のせいで `gcloud run deploy --source` が `dist` をアップロードしない。本リポジトリでは **`.gcloudignore`** で `dist` を除外していない。
+
 ```bash
 ./scripts/deploy-cloud-run.sh
 ```
