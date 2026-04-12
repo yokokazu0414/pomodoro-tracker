@@ -23,6 +23,8 @@
 
 **API キーがリポジトリに含まれていた場合**は [SECURITY.md](./SECURITY.md) に従い **キーをローテーション**すること。
 
+**ログイン障害の原因整理・再発防止の全体像**は [docs/auth-incident-retrospective.md](./docs/auth-incident-retrospective.md) を参照する。
+
 ### Firebase Console で「Authentication（認証）」メニューが見つからない場合
 
 新しいコンソール UI では、左サイドバーに **Authentication** が常時表示されないことがある。
