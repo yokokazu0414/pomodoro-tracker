@@ -88,17 +88,18 @@ export async function loginWithGoogle(): Promise<void> {
   }
   authLoginInFlight = true;
   try {
-    await setPersistence(auth, browserLocalPersistence);
-
     const useRedirectFirst =
       !isRunningInIframe() && shouldPreferGoogleRedirectAuth();
-
     const provider = createGoogleProvider();
 
+    // Safari（特にモバイル）: タップから最初の await までにユーザー起動が失効すると
+    // signInWithRedirect が動かずその場に留まる。setPersistence は待たず、リダイレクトを最優先する。
     if (useRedirectFirst) {
       await signInWithRedirect(auth, provider);
       return;
     }
+
+    await setPersistence(auth, browserLocalPersistence);
 
     try {
       await signInWithPopup(auth, provider);
