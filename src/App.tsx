@@ -9,8 +9,8 @@ import { Timer } from '@/components/Timer';
 import { Dashboard } from '@/components/Dashboard';
 import { DataManagement } from '@/components/DataManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { auth, loginWithGoogle, logout } from '@/lib/firebase';
-import { onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
+import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 
 export default function App() {
@@ -24,13 +24,13 @@ export default function App() {
       setLoading(false);
     });
 
-    getRedirectResult(auth).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[Auth] getRedirectResult', err);
-      alert(
-        `ログインに失敗しました: ${msg}\nFirebase Console → Authentication → 設定 → 承認済みドメイン に現在のホスト（例: localhost / 本番ドメイン）を追加してください。`,
-      );
-    });
+    consumeGoogleRedirectResultOnce().catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[Auth] getRedirectResult', err);
+        alert(
+          `ログインに失敗しました: ${msg}\nFirebase Console → Authentication → 設定 → 承認済みドメイン に現在のホストを追加するか、埋め込み表示なら別タブで開いてください。`,
+        );
+      });
 
     return () => unsubscribe();
   }, []);
@@ -51,7 +51,11 @@ export default function App() {
           <div className="text-6xl drop-shadow-sm" role="img" aria-label="tomato">🍅</div>
           <h1 className="text-3xl font-extrabold tracking-tight text-rose-600">Pomodoro Tracker</h1>
           <p className="text-rose-800/70 font-medium">Please sign in to sync your sessions across devices.</p>
-          <p className="text-sm text-rose-700/80">ボタンを押すと Google のログイン画面へ移動します（ポップアップは使いません）。</p>
+          <p className="text-sm text-rose-700/80">
+            {isRunningInIframe()
+              ? '埋め込み（iframe）ではポップアップでログインします。うまくいかない場合は「新しいタブで開く」で試してください。'
+              : 'ボタンを押すと Google のログイン画面へ移動します（通常はフルページ遷移）。'}
+          </p>
           <Button
             type="button"
             onClick={handleLogin}

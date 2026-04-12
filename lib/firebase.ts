@@ -3,9 +3,11 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithRedirect,
+  signInWithPopup,
   signOut,
   setPersistence,
   browserLocalPersistence,
+  getRedirectResult,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
@@ -40,21 +42,56 @@ export const db = getFirestore(app, firestoreDatabaseId);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+/** React Strict Mode 等で getRedirectResult が二重に走ると挙動が壊れるため、1 ページロードにつき 1 回だけ */
+let redirectResultOnce: ReturnType<typeof getRedirectResult> | null = null;
+
+export function consumeGoogleRedirectResultOnce() {
+  if (!redirectResultOnce) {
+    redirectResultOnce = getRedirectResult(auth);
+  }
+  return redirectResultOnce;
+}
+
+/** AI Studio 等の iframe 内ではリダイレクト認証が失敗しやすい（ウィンドウが一瞬で閉じる等） */
+export function isRunningInIframe(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
+let authLoginInFlight = false;
+
 /**
- * Google ログイン（フルページリダイレクト）。
- * ポップアップブロックや Safari 等で「押しても何も起きない」問題を避ける。
+ * Google ログイン。
+ * - 通常: フルページリダイレクト（ポップアップブロックの影響を受けにくい）
+ * - iframe 内（AI Studio 等）: リダイレクトが閉じる／無効になりやすいのでポップアップを使用
  */
 export async function loginWithGoogle(): Promise<void> {
+  if (authLoginInFlight) {
+    return;
+  }
+  authLoginInFlight = true;
   try {
     await setPersistence(auth, browserLocalPersistence);
+
+    if (isRunningInIframe()) {
+      await signInWithPopup(auth, googleProvider);
+      return;
+    }
+
     await signInWithRedirect(auth, googleProvider);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('Error signing in with Google', error);
     alert(
-      'ログインに失敗しました。Firebase の「承認済みドメイン」にこの URL を追加しているか確認してください。\n' +
+      'ログインに失敗しました。Firebase の「承認済みドメイン」にこの URL を追加しているか、iframe の場合は別タブで開いて試してください。\n' +
         message,
     );
+  } finally {
+    authLoginInFlight = false;
   }
 }
 
