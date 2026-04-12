@@ -41,6 +41,8 @@ const firestoreDatabaseId = requireEnv('VITE_FIRESTORE_DATABASE_ID');
 
 const app = initializeApp(firebaseConfig);
 
+let authUsedGetAuthFallback = false;
+
 /** Safari モバイルのリダイレクト後に localStorage より IndexedDB の方が安定することが多い */
 export const auth = (() => {
   try {
@@ -55,6 +57,7 @@ export const auth = (() => {
     // #endregion
     return a;
   } catch (e: unknown) {
+    authUsedGetAuthFallback = true;
     // #region agent log
     debugAuthIngest(
       'firebase.ts:authInit',
@@ -66,6 +69,11 @@ export const auth = (() => {
     return getAuth(app);
   }
 })();
+
+/** initializeAuth に失敗して getAuth だけのときだけ後段で setPersistence が必要（二重 setPersistence は auth/argument-error の原因になり得る） */
+export function didAuthUseGetAuthFallback(): boolean {
+  return authUsedGetAuthFallback;
+}
 auth.languageCode = 'ja';
 
 let db: ReturnType<typeof getFirestore>;
@@ -164,13 +172,24 @@ export async function loginWithGoogle(): Promise<void> {
   }
   authLoginInFlight = true;
   try {
-    // #region agent log
-    debugAuthIngest('firebase.ts:loginWithGoogle', 'before setPersistence', {}, 'H1');
-    // #endregion
-    await setPersistence(auth, indexedDBLocalPersistence);
-    // #region agent log
-    debugAuthIngest('firebase.ts:loginWithGoogle', 'after setPersistence', {}, 'H1');
-    // #endregion
+    if (authUsedGetAuthFallback) {
+      // #region agent log
+      debugAuthIngest('firebase.ts:loginWithGoogle', 'before setPersistence (fallback only)', {}, 'H1');
+      // #endregion
+      await setPersistence(auth, indexedDBLocalPersistence);
+      // #region agent log
+      debugAuthIngest('firebase.ts:loginWithGoogle', 'after setPersistence (fallback only)', {}, 'H1');
+      // #endregion
+    } else {
+      // #region agent log
+      debugAuthIngest(
+        'firebase.ts:loginWithGoogle',
+        'skip setPersistence (initializeAuth already set indexedDB)',
+        {},
+        'H1',
+      );
+      // #endregion
+    }
 
     const useRedirectFirst =
       !isRunningInIframe() && shouldPreferGoogleRedirectAuth();

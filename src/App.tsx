@@ -9,7 +9,14 @@ import { Timer } from '@/components/Timer';
 import { Dashboard } from '@/components/Dashboard';
 import { DataManagement } from '@/components/DataManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
+import {
+  auth,
+  didAuthUseGetAuthFallback,
+  loginWithGoogle,
+  logout,
+  consumeGoogleRedirectResultOnce,
+  isRunningInIframe,
+} from '@/lib/firebase';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
 import { debugAuthErr, debugAuthIngest } from '@/lib/debugAuthIngest';
 import { isLikelyInAppBrowser } from '@/lib/browserEnv';
@@ -42,11 +49,22 @@ export default function App() {
           'H3',
         );
         // #endregion
-        step = 'setPersistence';
-        await setPersistence(auth, indexedDBLocalPersistence);
-        // #region agent log
-        debugAuthIngest('App.tsx:authEffect', 'after setPersistence', { step }, 'H1');
-        // #endregion
+        if (didAuthUseGetAuthFallback()) {
+          step = 'setPersistence';
+          await setPersistence(auth, indexedDBLocalPersistence);
+          // #region agent log
+          debugAuthIngest('App.tsx:authEffect', 'after setPersistence (fallback only)', { step }, 'H1');
+          // #endregion
+        } else {
+          // #region agent log
+          debugAuthIngest(
+            'App.tsx:authEffect',
+            'skip setPersistence (initializeAuth already configured persistence)',
+            { step },
+            'H1',
+          );
+          // #endregion
+        }
         step = 'consumeRedirect';
         await consumeGoogleRedirectResultOnce();
         // #region agent log
