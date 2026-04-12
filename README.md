@@ -75,6 +75,13 @@ Firebase（Identity Platform）の **承認済みドメイン** と、Google Clo
 3. **ブラウザの開発者ツール（F12）→ Console / Network**  
    ログイン直後に `400` / `403` / `API key not valid` / `idpiframe` などが出ていないか確認する。表示されたエラー文が次の手掛かりになる。
 
+### スマホで「The requested action is invalid」
+
+Google は **LINE・Instagram・X（Twitter）等のアプリ内ブラウザ（埋め込み WebView）** からの OAuth ログインを拒否することが多く、この文言が出る。
+
+- リンクを **Safari** または **Chrome** で開く（アプリの「…」メニューから「Safari で開く」等）。
+- 既に Safari で開いているのに失敗する場合は、**OAuth 同意画面がテストモード**で、自分の Google アカウントがテストユーザーに入っていないケースもある（Google Cloud Console → OAuth 同意画面）。
+
 ## 前提
 
 - Node.js 18+（推奨: 20 系）

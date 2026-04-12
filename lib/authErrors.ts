@@ -7,6 +7,16 @@ export function getAuthErrorCode(err: unknown): string {
   return '';
 }
 
+function messageLooksLikeGoogleBlockedInWebView(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes('requested action is invalid') ||
+    m.includes('the requested action is invalid') ||
+    m.includes('disallowed_useragent') ||
+    m.includes('403:') && m.includes('blocked')
+  );
+}
+
 export function formatFirebaseAuthHelp(err: unknown): string {
   const code = getAuthErrorCode(err);
   const message = err instanceof Error ? err.message : String(err);
@@ -14,6 +24,15 @@ export function formatFirebaseAuthHelp(err: unknown): string {
   const host = typeof window !== 'undefined' ? window.location.hostname : '';
 
   const lines: string[] = [`${message}`, '', `（Firebase コード: ${code || '不明'}）`];
+
+  if (messageLooksLikeGoogleBlockedInWebView(message)) {
+    lines.push('', '【スマホで「The requested action is invalid」が出る場合】');
+    lines.push('Google は LINE・Instagram・X 等の「アプリ内ブラウザ」でのログインを拒否することがあります。');
+    lines.push('① 画面右上の「…」から「Safari で開く」「Chrome で開く」を選ぶ');
+    lines.push('② または URL をコピーし、Safari / Chrome を直接起動して貼り付け');
+    lines.push('③ それでもダメなら、OAuth 同意画面の「テストユーザー」に自分の Gmail を入れているか確認（テストモード時）');
+    lines.push('');
+  }
 
   if (
     code === 'auth/unauthorized-domain' ||

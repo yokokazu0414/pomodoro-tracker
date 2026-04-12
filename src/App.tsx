@@ -11,6 +11,7 @@ import { DataManagement } from '@/components/DataManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
+import { isLikelyInAppBrowser } from '@/lib/browserEnv';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 
@@ -54,6 +55,13 @@ export default function App() {
               ? '埋め込み表示の場合はポップアップでログインします。うまくいかない場合は新しいタブで開いてください。'
               : 'ボタンを押すと Google のログイン画面が開きます（ポップアップ）。ブロックされる場合は自動で別方式に切り替わります。'}
           </p>
+          {typeof window !== 'undefined' && isLikelyInAppBrowser() && (
+            <p className="text-xs text-left rounded-lg bg-red-50 border border-red-200 text-red-950 px-3 py-2 leading-relaxed">
+              <strong className="font-semibold">アプリ内ブラウザを検出しました。</strong>
+              Google ログインは「The requested action is invalid」で失敗することがあります。
+              メニューから <strong>Safari / Chrome で開く</strong> で開き直してください。
+            </p>
+          )}
           <p className="text-xs text-left rounded-lg bg-amber-50 border border-amber-200 text-amber-950 px-3 py-2 leading-relaxed">
             <strong className="font-semibold">初回・Cloud Run 運用時:</strong>
             次のホストを Firebase の「承認済みドメイン」に追加してください。
@@ -71,7 +79,8 @@ export default function App() {
             {signingIn ? '移動中…' : 'Sign in with Google'}
           </Button>
           <p className="text-xs text-rose-800/50 mt-4">
-            ※LINE等のアプリ内ブラウザではなく、SafariやChromeで開いてください。移動しない場合はポップアップブロックではなく、Firebase の承認済みドメインを確認してください。
+            ※スマホは <strong>LINE / Instagram / X 等の内蔵ブラウザではなく</strong>、Safari または Chrome
+            で開いてください。「The requested action is invalid」は多くの場合これが原因です。
           </p>
         </div>
       </div>
