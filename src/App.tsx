@@ -9,7 +9,15 @@ import { Timer } from '@/components/Timer';
 import { Dashboard } from '@/components/Dashboard';
 import { DataManagement } from '@/components/DataManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
+import {
+  auth,
+  loginWithGoogle,
+  loginWithGoogleViaPopup,
+  logout,
+  consumeGoogleRedirectResultOnce,
+  isRunningInIframe,
+} from '@/lib/firebase';
+import { shouldPreferGoogleRedirectAuth } from '@/lib/browserEnv';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
 import { isLikelyInAppBrowser } from '@/lib/browserEnv';
 import {
@@ -41,94 +49,19 @@ export default function App() {
     let unsubscribe: (() => void) | undefined;
     // authStateReady / getRedirectResult が稀に未解決のまま止まる環境があるため、必ず UI を開放する
     const safetyTimer = window.setTimeout(() => {
-      // #region agent log
-      fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
-        body: JSON.stringify({
-          sessionId: 'e5af57',
-          location: 'App.tsx:safetyTimer',
-          message: '12s safety fired (await may be hung)',
-          data: { via: 'safety' },
-          timestamp: Date.now(),
-          hypothesisId: 'H4',
-          runId: 'verify',
-        }),
-      }).catch(() => {});
-      // #endregion
       setLoading(false);
     }, 12000);
 
     void (async () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
-        body: JSON.stringify({
-          sessionId: 'e5af57',
-          location: 'App.tsx:init',
-          message: 'auth bootstrap start',
-          data: {},
-          timestamp: Date.now(),
-          hypothesisId: 'H0',
-          runId: 'verify',
-        }),
-      }).catch(() => {});
-      // #endregion
       try {
         // リダイレクト復帰時は先に OAuth 結果を処理（Safari で setPersistence より前が安定する事例あり）
         await consumeGoogleRedirectResultOnce();
-        // #region agent log
-        fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
-          body: JSON.stringify({
-            sessionId: 'e5af57',
-            location: 'App.tsx:afterRedirect',
-            message: 'consumeGoogleRedirectResultOnce resolved',
-            data: {},
-            timestamp: Date.now(),
-            hypothesisId: 'H1',
-            runId: 'verify',
-          }),
-        }).catch(() => {});
-        // #endregion
         await setPersistence(auth, browserLocalPersistence);
-        // #region agent log
-        fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
-          body: JSON.stringify({
-            sessionId: 'e5af57',
-            location: 'App.tsx:afterPersistence',
-            message: 'setPersistence resolved',
-            data: {},
-            timestamp: Date.now(),
-            hypothesisId: 'H2',
-            runId: 'verify',
-          }),
-        }).catch(() => {});
-        // #endregion
         setUser(auth.currentUser);
       } catch (err: unknown) {
         console.error('[Auth] getRedirectResult', err);
         alert(formatFirebaseAuthHelp(err));
       } finally {
-        // #region agent log
-        fetch('http://127.0.0.1:7539/ingest/daee6513-eaa3-4a7e-8ba7-79eb2a809b14', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e5af57' },
-          body: JSON.stringify({
-            sessionId: 'e5af57',
-            location: 'App.tsx:finally',
-            message: 'auth bootstrap finally (loading off)',
-            data: {},
-            timestamp: Date.now(),
-            hypothesisId: 'H3',
-            runId: 'verify',
-          }),
-        }).catch(() => {});
-        // #endregion
         window.clearTimeout(safetyTimer);
         setLoading(false);
       }
@@ -147,6 +80,17 @@ export default function App() {
     setSigningIn(true);
     void loginWithGoogle().finally(() => setSigningIn(false));
   };
+
+  const handleLoginPopup = () => {
+    setSigningIn(true);
+    void loginWithGoogleViaPopup().finally(() => setSigningIn(false));
+  };
+
+  const showPopupFallback =
+    typeof window !== 'undefined' &&
+    !inAppBrowser &&
+    !isRunningInIframe() &&
+    shouldPreferGoogleRedirectAuth();
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-[#fff5f5]">Loading...</div>;
@@ -212,6 +156,17 @@ export default function App() {
                 ? '移動中…'
                 : 'Sign in with Google'}
           </Button>
+          {showPopupFallback && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleLoginPopup}
+              disabled={signingIn}
+              className="w-full border-rose-200 text-rose-800 hover:bg-rose-50 rounded-xl py-3 text-sm"
+            >
+              うまくいかないとき: ポップアップでログイン
+            </Button>
+          )}
           <p className="text-xs text-rose-800/50 mt-4">
             ※スマホは <strong>LINE / Instagram / X 等の内蔵ブラウザではなく</strong>、Safari または Chrome
             で開いてください。「The requested action is invalid」は多くの場合これが原因です。

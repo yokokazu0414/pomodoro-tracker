@@ -78,6 +78,30 @@ export function isRunningInIframe(): boolean {
 let authLoginInFlight = false;
 
 /**
+ * リダイレクトが `firebaseapp.com` で止まる・invalid になる場合の代替。
+ * モバイルでもフル Safari ならポップアップ（別タブ相当）が通ることがある。
+ */
+export function loginWithGoogleViaPopup(): Promise<void> {
+  if (authLoginInFlight) {
+    return Promise.resolve();
+  }
+  authLoginInFlight = true;
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return (async () => {
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      await signInWithPopup(auth, provider);
+    } catch (error: unknown) {
+      console.error('signInWithPopup (fallback)', error);
+      alert(formatFirebaseAuthHelp(error));
+    } finally {
+      authLoginInFlight = false;
+    }
+  })();
+}
+
+/**
  * Google ログイン。
  * デスクトップ: ポップアップ優先 → ブロック時のみリダイレクト。
  * モバイル: リダイレクト優先。
@@ -97,6 +121,7 @@ export function loginWithGoogle(): Promise<void> {
   const provider = createGoogleProvider();
 
   if (useRedirectFirst) {
+    void setPersistence(auth, browserLocalPersistence);
     return signInWithRedirect(auth, provider)
       .catch((error: unknown) => {
         console.error('Error signing in with Google', error);
