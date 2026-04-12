@@ -13,6 +13,7 @@ import {
 import { getFirestore } from 'firebase/firestore';
 import { formatFirebaseAuthHelp, getAuthErrorCode } from '@/lib/authErrors';
 import { shouldPreferGoogleRedirectAuth } from '@/lib/browserEnv';
+import { debugAuthErr, debugAuthIngest } from '@/lib/debugAuthIngest';
 
 function requireEnv(name: keyof ImportMetaEnv): string {
   const v = import.meta.env[name];
@@ -43,14 +44,48 @@ const app = initializeApp(firebaseConfig);
 /** Safari モバイルのリダイレクト後に localStorage より IndexedDB の方が安定することが多い */
 export const auth = (() => {
   try {
-    return initializeAuth(app, { persistence: indexedDBLocalPersistence });
-  } catch {
+    const a = initializeAuth(app, { persistence: indexedDBLocalPersistence });
+    // #region agent log
+    debugAuthIngest(
+      'firebase.ts:authInit',
+      'initializeAuth ok',
+      { path: 'initializeAuth' },
+      'H4',
+    );
+    // #endregion
+    return a;
+  } catch (e: unknown) {
+    // #region agent log
+    debugAuthIngest(
+      'firebase.ts:authInit',
+      'initializeAuth threw; getAuth fallback',
+      { ...debugAuthErr(e), path: 'getAuth_fallback' },
+      'H4',
+    );
+    // #endregion
     return getAuth(app);
   }
 })();
 auth.languageCode = 'ja';
 
-export const db = getFirestore(app, firestoreDatabaseId);
+let db: ReturnType<typeof getFirestore>;
+try {
+  db = getFirestore(app, firestoreDatabaseId);
+  // #region agent log
+  debugAuthIngest(
+    'firebase.ts:firestoreInit',
+    'getFirestore ok',
+    { databaseIdLen: String(firestoreDatabaseId).length },
+    'H5',
+  );
+  // #endregion
+} catch (e: unknown) {
+  // #region agent log
+  debugAuthIngest('firebase.ts:firestoreInit', 'getFirestore threw', debugAuthErr(e), 'H5');
+  // #endregion
+  throw e;
+}
+export { db };
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
@@ -62,12 +97,44 @@ let redirectResultOnce: Promise<Awaited<ReturnType<typeof getRedirectResult>>> |
 export function consumeGoogleRedirectResultOnce() {
   if (!redirectResultOnce) {
     redirectResultOnce = (async () => {
+      // #region agent log
+      debugAuthIngest(
+        'firebase.ts:consumeRedirect',
+        'before mobile delay / getRedirectResult',
+        { mobileDelay: shouldPreferGoogleRedirectAuth() },
+        'H2',
+      );
+      // #endregion
       // モバイルで Google から戻った直後は通信スタックが立ち上がる前に getRedirectResult が走り
       // auth/network-request-failed になりやすいため、わずかに遅らせる。
       if (typeof window !== 'undefined' && shouldPreferGoogleRedirectAuth()) {
         await new Promise((r) => setTimeout(r, 450));
       }
-      return getRedirectResult(auth);
+      // #region agent log
+      debugAuthIngest('firebase.ts:consumeRedirect', 'calling getRedirectResult', {}, 'H2');
+      // #endregion
+      try {
+        const cred = await getRedirectResult(auth);
+        // #region agent log
+        debugAuthIngest(
+          'firebase.ts:consumeRedirect',
+          'getRedirectResult resolved',
+          { hasUser: !!cred?.user },
+          'H2',
+        );
+        // #endregion
+        return cred;
+      } catch (e: unknown) {
+        // #region agent log
+        debugAuthIngest(
+          'firebase.ts:consumeRedirect',
+          'getRedirectResult threw',
+          debugAuthErr(e),
+          'H2',
+        );
+        // #endregion
+        throw e;
+      }
     })();
   }
   return redirectResultOnce;
@@ -97,7 +164,13 @@ export async function loginWithGoogle(): Promise<void> {
   }
   authLoginInFlight = true;
   try {
+    // #region agent log
+    debugAuthIngest('firebase.ts:loginWithGoogle', 'before setPersistence', {}, 'H1');
+    // #endregion
     await setPersistence(auth, indexedDBLocalPersistence);
+    // #region agent log
+    debugAuthIngest('firebase.ts:loginWithGoogle', 'after setPersistence', {}, 'H1');
+    // #endregion
 
     const useRedirectFirst =
       !isRunningInIframe() && shouldPreferGoogleRedirectAuth();
@@ -123,6 +196,14 @@ export async function loginWithGoogle(): Promise<void> {
       return;
     }
   } catch (error: unknown) {
+    // #region agent log
+    debugAuthIngest(
+      'firebase.ts:loginWithGoogle',
+      'catch',
+      debugAuthErr(error),
+      'H1',
+    );
+    // #endregion
     console.error('Error signing in with Google', error);
     alert(formatFirebaseAuthHelp(error));
   } finally {

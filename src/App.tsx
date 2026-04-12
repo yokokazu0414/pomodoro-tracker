@@ -11,6 +11,7 @@ import { DataManagement } from '@/components/DataManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
+import { debugAuthErr, debugAuthIngest } from '@/lib/debugAuthIngest';
 import { isLikelyInAppBrowser } from '@/lib/browserEnv';
 import {
   onAuthStateChanged,
@@ -29,12 +30,43 @@ export default function App() {
     let unsubscribe: (() => void) | undefined;
 
     void (async () => {
+      let step = 'init';
       try {
+        // #region agent log
+        debugAuthIngest(
+          'App.tsx:authEffect',
+          'start',
+          {
+            authStateReadyType: typeof (auth as { authStateReady?: unknown }).authStateReady,
+          },
+          'H3',
+        );
+        // #endregion
+        step = 'setPersistence';
         await setPersistence(auth, indexedDBLocalPersistence);
+        // #region agent log
+        debugAuthIngest('App.tsx:authEffect', 'after setPersistence', { step }, 'H1');
+        // #endregion
+        step = 'consumeRedirect';
         await consumeGoogleRedirectResultOnce();
+        // #region agent log
+        debugAuthIngest('App.tsx:authEffect', 'after consumeRedirect', { step }, 'H2');
+        // #endregion
+        step = 'authStateReady';
         // リダイレクト処理・IndexedDB 復元が終わるまで待つ（待たないと onAuthStateChanged が一瞬 null になりログイン画面に戻る）
         await auth.authStateReady();
+        // #region agent log
+        debugAuthIngest('App.tsx:authEffect', 'after authStateReady', { step }, 'H3');
+        // #endregion
       } catch (err: unknown) {
+        // #region agent log
+        debugAuthIngest(
+          'App.tsx:authEffect',
+          'catch',
+          { step, ...debugAuthErr(err) },
+          'H1',
+        );
+        // #endregion
         console.error('[Auth] getRedirectResult', err);
         alert(formatFirebaseAuthHelp(err));
       }
