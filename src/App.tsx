@@ -20,10 +20,20 @@ import {
 } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 
+function copyAppUrlToClipboard(): void {
+  if (typeof window === 'undefined') return;
+  const url = window.location.href;
+  void navigator.clipboard?.writeText(url).catch(() => {
+    window.prompt('以下をコピーして Safari / Chrome のアドレス欄に貼り付けてください', url);
+  });
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+  const inAppBrowser =
+    typeof window !== 'undefined' && isLikelyInAppBrowser();
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -152,12 +162,22 @@ export default function App() {
               ? '埋め込み表示の場合はポップアップでログインします。うまくいかない場合は新しいタブで開いてください。'
               : 'スマホでは Google に一度遷移してから戻ります。戻った直後は数秒 Loading のままになることがあります。'}
           </p>
-          {typeof window !== 'undefined' && isLikelyInAppBrowser() && (
-            <p className="text-xs text-left rounded-lg bg-red-50 border border-red-200 text-red-950 px-3 py-2 leading-relaxed">
-              <strong className="font-semibold">アプリ内ブラウザを検出しました。</strong>
-              Google ログインは「The requested action is invalid」で失敗することがあります。
-              メニューから <strong>Safari / Chrome で開く</strong> で開き直してください。
-            </p>
+          {inAppBrowser && (
+            <div className="text-left space-y-3 rounded-lg bg-red-50 border border-red-200 text-red-950 px-3 py-3 leading-relaxed">
+              <p className="text-sm font-semibold">アプリ内ブラウザです（LINE / Instagram 等）</p>
+              <p className="text-xs">
+                この環境では Google 認証ページへ<strong>移動せず</strong>、すぐに元の画面（チャットのメニュー等）に戻ることがあります。
+                下の URL を<strong>コピーして Safari または Chrome で開き直し</strong>てからログインしてください。
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-red-300 text-red-900 hover:bg-red-100"
+                onClick={() => copyAppUrlToClipboard()}
+              >
+                このページの URL をコピー
+              </Button>
+            </div>
           )}
           <p className="text-xs text-left rounded-lg bg-amber-50 border border-amber-200 text-amber-950 px-3 py-2 leading-relaxed">
             <strong className="font-semibold">初回・Cloud Run 運用時:</strong>
@@ -170,10 +190,14 @@ export default function App() {
           <Button
             type="button"
             onClick={handleLogin}
-            disabled={signingIn}
-            className="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl py-6 text-lg font-semibold"
+            disabled={signingIn || inAppBrowser}
+            className="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl py-6 text-lg font-semibold disabled:opacity-50"
           >
-            {signingIn ? '移動中…' : 'Sign in with Google'}
+            {inAppBrowser
+              ? 'このブラウザではログインできません'
+              : signingIn
+                ? '移動中…'
+                : 'Sign in with Google'}
           </Button>
           <p className="text-xs text-rose-800/50 mt-4">
             ※スマホは <strong>LINE / Instagram / X 等の内蔵ブラウザではなく</strong>、Safari または Chrome

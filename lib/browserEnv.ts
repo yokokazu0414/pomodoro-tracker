@@ -1,8 +1,16 @@
 /** LINE / Instagram 等のアプリ内 WebView かどうかの簡易判定（誤検知あり得る） */
 export function isLikelyInAppBrowser(): boolean {
-  if (typeof navigator === 'undefined') return false;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  // ホーム画面追加 PWA / スタンドアロンは通常ブラウザ相当で OAuth 可能に近い
+  if (window.matchMedia?.('(display-mode: standalone)')?.matches) return false;
+  if ((navigator as Navigator & { standalone?: boolean }).standalone === true) return false;
+
   const ua = navigator.userAgent || '';
-  return /Line\/|Instagram|FBAN|FBAV|KAKAOTALK|Twitter|Micromessenger|WeChat/i.test(ua);
+  // Android System WebView（; wv)）はアプリ内表示が多い
+  if (/; wv\)/i.test(ua)) return true;
+  return /Line\/|Instagram|FBAN|FBAV|KAKAOTALK|Twitter|Micromessenger|WeChat|Snapchat|LinkedInApp|Slack|Discord|Pinterest|TikTok|musical_ly|GSA\/|NAVER|Daum|KAKAOTALK/i.test(
+    ua,
+  );
 }
 
 /**
