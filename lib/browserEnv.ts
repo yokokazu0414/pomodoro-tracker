@@ -6,13 +6,21 @@ export function isLikelyInAppBrowser(): boolean {
 }
 
 /**
- * モバイル系ブラウザでは signInWithPopup が不安定なため、Google ログインはリダイレクトを優先する。
- * iPadOS の「デスクトップ向けサイト」は Macintosh になり得るが、タッチ端末も広めに拾う。
+ * モバイル系では signInWithPopup が不安定なためリダイレクトを優先する。
+ * iOS の Chrome / Edge / Firefox もすべて WebKit ベースで Safari と同様の制約を受ける（別ブラウザでも挙動は揃いやすい）。
  */
 export function shouldPreferGoogleRedirectAuth(): boolean {
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent || '';
-  if (/iPhone|iPad|iPod|Android/i.test(ua)) return true;
-  if (navigator.maxTouchPoints > 1 && /Macintosh|Windows NT/i.test(ua)) return true;
+  if (
+    /iPhone|iPad|iPod|Android|CriOS|FxiOS|EdgiOS|OPiOS|SamsungBrowser|Mobile Safari/i.test(
+      ua,
+    )
+  ) {
+    return true;
+  }
+  if (navigator.maxTouchPoints > 0 && /Macintosh|Windows NT/i.test(ua)) {
+    return true;
+  }
   return false;
 }

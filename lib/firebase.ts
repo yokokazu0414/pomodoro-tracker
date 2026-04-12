@@ -92,8 +92,8 @@ export async function loginWithGoogle(): Promise<void> {
       !isRunningInIframe() && shouldPreferGoogleRedirectAuth();
     const provider = createGoogleProvider();
 
-    // Safari（特にモバイル）: タップから最初の await までにユーザー起動が失効すると
-    // signInWithRedirect が動かずその場に留まる。setPersistence は待たず、リダイレクトを最優先する。
+    // モバイル: setPersistence を await しない（ユーザー起動が先に失効しやすい）。
+    // signInWithRedirect はそのまま await してエラーと「移動中」UI を正しく扱う。
     if (useRedirectFirst) {
       await signInWithRedirect(auth, provider);
       return;
