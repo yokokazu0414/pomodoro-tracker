@@ -45,8 +45,14 @@ auth.languageCode = 'ja';
 
 export const db = getFirestore(app, firestoreDatabaseId);
 
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
+/** モバイルは `prompt` を付けると余計な画面遷移になり、リダイレクト復帰と競合しやすい */
+function createGoogleProvider(): GoogleAuthProvider {
+  const p = new GoogleAuthProvider();
+  if (!shouldPreferGoogleRedirectAuth()) {
+    p.setCustomParameters({ prompt: 'select_account' });
+  }
+  return p;
+}
 
 /** React Strict Mode 等で getRedirectResult が二重に走ると挙動が壊れるため、1 ページロードにつき 1 回だけ */
 let redirectResultOnce: Promise<Awaited<ReturnType<typeof getRedirectResult>>> | null =
@@ -54,12 +60,7 @@ let redirectResultOnce: Promise<Awaited<ReturnType<typeof getRedirectResult>>> |
 
 export function consumeGoogleRedirectResultOnce() {
   if (!redirectResultOnce) {
-    redirectResultOnce = (async () => {
-      if (typeof window !== 'undefined' && shouldPreferGoogleRedirectAuth()) {
-        await new Promise((r) => setTimeout(r, 450));
-      }
-      return getRedirectResult(auth);
-    })();
+    redirectResultOnce = getRedirectResult(auth);
   }
   return redirectResultOnce;
 }
@@ -92,20 +93,22 @@ export async function loginWithGoogle(): Promise<void> {
     const useRedirectFirst =
       !isRunningInIframe() && shouldPreferGoogleRedirectAuth();
 
+    const provider = createGoogleProvider();
+
     if (useRedirectFirst) {
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithRedirect(auth, provider);
       return;
     }
 
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(auth, provider);
     } catch (first: unknown) {
       const code = getAuthErrorCode(first);
       if (
         code === 'auth/popup-blocked' ||
         code === 'auth/cancelled-popup-request'
       ) {
-        await signInWithRedirect(auth, googleProvider);
+        await signInWithRedirect(auth, createGoogleProvider());
         return;
       }
       console.error('signInWithPopup', first);

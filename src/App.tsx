@@ -30,16 +30,18 @@ export default function App() {
 
     void (async () => {
       try {
-        await setPersistence(auth, browserLocalPersistence);
+        // リダイレクト復帰時は先に OAuth 結果を処理（Safari で setPersistence より前が安定する事例あり）
         await consumeGoogleRedirectResultOnce();
+        await setPersistence(auth, browserLocalPersistence);
         await auth.authStateReady();
+        setUser(auth.currentUser);
       } catch (err: unknown) {
         console.error('[Auth] getRedirectResult', err);
         alert(formatFirebaseAuthHelp(err));
       }
+      setLoading(false);
       unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         setUser(currentUser);
-        setLoading(false);
       });
     })();
 
