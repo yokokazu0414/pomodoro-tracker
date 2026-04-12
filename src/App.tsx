@@ -27,25 +27,33 @@ export default function App() {
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
+    // authStateReady / getRedirectResult が稀に未解決のまま止まる環境があるため、必ず UI を開放する
+    const safetyTimer = window.setTimeout(() => {
+      setLoading(false);
+    }, 12000);
 
     void (async () => {
       try {
         // リダイレクト復帰時は先に OAuth 結果を処理（Safari で setPersistence より前が安定する事例あり）
         await consumeGoogleRedirectResultOnce();
         await setPersistence(auth, browserLocalPersistence);
-        await auth.authStateReady();
         setUser(auth.currentUser);
       } catch (err: unknown) {
         console.error('[Auth] getRedirectResult', err);
         alert(formatFirebaseAuthHelp(err));
+      } finally {
+        window.clearTimeout(safetyTimer);
+        setLoading(false);
       }
-      setLoading(false);
       unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         setUser(currentUser);
       });
     })();
 
-    return () => unsubscribe?.();
+    return () => {
+      window.clearTimeout(safetyTimer);
+      unsubscribe?.();
+    };
   }, []);
 
   const handleLogin = () => {
