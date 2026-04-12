@@ -9,21 +9,13 @@ import { Timer } from '@/components/Timer';
 import { Dashboard } from '@/components/Dashboard';
 import { DataManagement } from '@/components/DataManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  auth,
-  didAuthUseGetAuthFallback,
-  loginWithGoogle,
-  logout,
-  consumeGoogleRedirectResultOnce,
-  isRunningInIframe,
-} from '@/lib/firebase';
+import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
-import { debugAuthErr, debugAuthIngest } from '@/lib/debugAuthIngest';
 import { isLikelyInAppBrowser } from '@/lib/browserEnv';
 import {
   onAuthStateChanged,
   setPersistence,
-  indexedDBLocalPersistence,
+  browserLocalPersistence,
   User,
 } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -37,54 +29,11 @@ export default function App() {
     let unsubscribe: (() => void) | undefined;
 
     void (async () => {
-      let step = 'init';
       try {
-        // #region agent log
-        debugAuthIngest(
-          'App.tsx:authEffect',
-          'start',
-          {
-            authStateReadyType: typeof (auth as { authStateReady?: unknown }).authStateReady,
-          },
-          'H3',
-        );
-        // #endregion
-        if (didAuthUseGetAuthFallback()) {
-          step = 'setPersistence';
-          await setPersistence(auth, indexedDBLocalPersistence);
-          // #region agent log
-          debugAuthIngest('App.tsx:authEffect', 'after setPersistence (fallback only)', { step }, 'H1');
-          // #endregion
-        } else {
-          // #region agent log
-          debugAuthIngest(
-            'App.tsx:authEffect',
-            'skip setPersistence (initializeAuth already configured persistence)',
-            { step },
-            'H1',
-          );
-          // #endregion
-        }
-        step = 'consumeRedirect';
+        await setPersistence(auth, browserLocalPersistence);
         await consumeGoogleRedirectResultOnce();
-        // #region agent log
-        debugAuthIngest('App.tsx:authEffect', 'after consumeRedirect', { step }, 'H2');
-        // #endregion
-        step = 'authStateReady';
-        // リダイレクト処理・IndexedDB 復元が終わるまで待つ（待たないと onAuthStateChanged が一瞬 null になりログイン画面に戻る）
         await auth.authStateReady();
-        // #region agent log
-        debugAuthIngest('App.tsx:authEffect', 'after authStateReady', { step }, 'H3');
-        // #endregion
       } catch (err: unknown) {
-        // #region agent log
-        debugAuthIngest(
-          'App.tsx:authEffect',
-          'catch',
-          { step, ...debugAuthErr(err) },
-          'H1',
-        );
-        // #endregion
         console.error('[Auth] getRedirectResult', err);
         alert(formatFirebaseAuthHelp(err));
       }
@@ -116,7 +65,7 @@ export default function App() {
           <p className="text-sm text-rose-700/80">
             {isRunningInIframe()
               ? '埋め込み表示の場合はポップアップでログインします。うまくいかない場合は新しいタブで開いてください。'
-              : 'スマホでは Google に一度遷移してからアプリに戻ります。戻った直後は数秒「Loading...」のままになることがあります。'}
+              : 'スマホでは Google に一度遷移してから戻ります。戻った直後は数秒 Loading のままになることがあります。'}
           </p>
           {typeof window !== 'undefined' && isLikelyInAppBrowser() && (
             <p className="text-xs text-left rounded-lg bg-red-50 border border-red-200 text-red-950 px-3 py-2 leading-relaxed">
