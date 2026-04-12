@@ -10,6 +10,7 @@ import { Dashboard } from '@/components/Dashboard';
 import { DataManagement } from '@/components/DataManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
+import { formatFirebaseAuthHelp } from '@/lib/authErrors';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 
@@ -25,12 +26,9 @@ export default function App() {
     });
 
     consumeGoogleRedirectResultOnce().catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('[Auth] getRedirectResult', err);
-        alert(
-          `ログインに失敗しました: ${msg}\nFirebase Console → Authentication → 設定 → 承認済みドメイン に現在のホストを追加するか、埋め込み表示なら別タブで開いてください。`,
-        );
-      });
+      console.error('[Auth] getRedirectResult', err);
+      alert(formatFirebaseAuthHelp(err));
+    });
 
     return () => unsubscribe();
   }, []);
@@ -53,8 +51,16 @@ export default function App() {
           <p className="text-rose-800/70 font-medium">Please sign in to sync your sessions across devices.</p>
           <p className="text-sm text-rose-700/80">
             {isRunningInIframe()
-              ? '埋め込み（iframe）ではポップアップでログインします。うまくいかない場合は「新しいタブで開く」で試してください。'
-              : 'ボタンを押すと Google のログイン画面へ移動します（通常はフルページ遷移）。'}
+              ? '埋め込み表示の場合はポップアップでログインします。うまくいかない場合は新しいタブで開いてください。'
+              : 'ボタンを押すと Google のログイン画面が開きます（ポップアップ）。ブロックされる場合は自動で別方式に切り替わります。'}
+          </p>
+          <p className="text-xs text-left rounded-lg bg-amber-50 border border-amber-200 text-amber-950 px-3 py-2 leading-relaxed">
+            <strong className="font-semibold">初回・Cloud Run 運用時:</strong>
+            次のホストを Firebase の「承認済みドメイン」に追加してください。
+            <br />
+            <code className="text-xs break-all select-all bg-white/80 px-1 rounded">
+              {typeof window !== 'undefined' ? window.location.hostname : ''}
+            </code>
           </p>
           <Button
             type="button"

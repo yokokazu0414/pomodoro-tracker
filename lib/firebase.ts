@@ -10,6 +10,7 @@ import {
   getRedirectResult,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { formatFirebaseAuthHelp, getAuthErrorCode } from '@/lib/authErrors';
 
 function requireEnv(name: keyof ImportMetaEnv): string {
   const v = import.meta.env[name];
@@ -37,6 +38,8 @@ const firestoreDatabaseId = requireEnv('VITE_FIRESTORE_DATABASE_ID');
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+auth.languageCode = 'ja';
+
 export const db = getFirestore(app, firestoreDatabaseId);
 
 export const googleProvider = new GoogleAuthProvider();
@@ -52,7 +55,7 @@ export function consumeGoogleRedirectResultOnce() {
   return redirectResultOnce;
 }
 
-/** AI Studio 等の iframe 内ではリダイレクト認証が失敗しやすい（ウィンドウが一瞬で閉じる等） */
+/** AI Studio 等の iframe 内では別 UI 案内を出す */
 export function isRunningInIframe(): boolean {
   if (typeof window === 'undefined') return false;
   try {
@@ -66,8 +69,8 @@ let authLoginInFlight = false;
 
 /**
  * Google ログイン。
- * - 通常: フルページリダイレクト（ポップアップブロックの影響を受けにくい）
- * - iframe 内（AI Studio 等）: リダイレクトが閉じる／無効になりやすいのでポップアップを使用
+ * まずポップアップ（設定ミス時に Google のエラーが見えやすい）→ ブロック時のみフルリダイレクト。
+ * Cloud Run 等は Firebase「承認済みドメイン」＋ GCP の OAuth「JavaScript 生成元」にオリジンが必要。
  */
 export async function loginWithGoogle(): Promise<void> {
   if (authLoginInFlight) {
@@ -77,19 +80,24 @@ export async function loginWithGoogle(): Promise<void> {
   try {
     await setPersistence(auth, browserLocalPersistence);
 
-    if (isRunningInIframe()) {
+    try {
       await signInWithPopup(auth, googleProvider);
+    } catch (first: unknown) {
+      const code = getAuthErrorCode(first);
+      if (
+        code === 'auth/popup-blocked' ||
+        code === 'auth/cancelled-popup-request'
+      ) {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      console.error('signInWithPopup', first);
+      alert(formatFirebaseAuthHelp(first));
       return;
     }
-
-    await signInWithRedirect(auth, googleProvider);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
     console.error('Error signing in with Google', error);
-    alert(
-      'ログインに失敗しました。Firebase の「承認済みドメイン」にこの URL を追加しているか、iframe の場合は別タブで開いて試してください。\n' +
-        message,
-    );
+    alert(formatFirebaseAuthHelp(error));
   } finally {
     authLoginInFlight = false;
   }

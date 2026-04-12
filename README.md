@@ -23,6 +23,18 @@
 
 **API キーがリポジトリに含まれていた場合**は [SECURITY.md](./SECURITY.md) に従い **キーをローテーション**すること。
 
+### Cloud Run / 独自ドメインでログインできない場合
+
+スクリーンショットのような **`*.run.app`** や独自ドメインでホストしているとき、**ログイン用ウィンドウがすぐ閉じる**ことがある。次を両方満たすこと。
+
+1. **Firebase Console** → **Authentication** → **設定** → **承認済みドメイン**  
+   に、アプリの **ホスト名のみ**（例: `pomodoro-tracker-267724445152.us-west1.run.app`）を追加する。`https://` は付けない。
+
+2. **Google Cloud Console** → **API とサービス** → **認証情報** → **OAuth 2.0 クライアント ID**（Web のクライアント）→ **承認済みの JavaScript 生成元**  
+   に **`https://` 付きのオリジン**（例: `https://pomodoro-tracker-267724445152.us-west1.run.app`）を追加する。
+
+保存後、数分待ってから再試行する。
+
 ## 前提
 
 - Node.js 18+（推奨: 20 系）
