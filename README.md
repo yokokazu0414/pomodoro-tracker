@@ -2,6 +2,10 @@
 
 個人向けポモドーロタイマー。セッションは **Firebase Authentication（Google）** と **Cloud Firestore** に保存し、ダッシュボードと CSV のエクスポート／インポートで振り返り・バックアップができる。
 
+### 新規開発との関係（Supabase）
+
+VibeMaker ワークスペースの方針では **今後の新規アプリは Supabase（例: Next.js + Supabase）を前提**とする。本プロジェクトは **完成済みの Firebase 構成のまま**メンテナンスする（バックエンドを差し替える予定はない）。
+
 ## 技術スタック
 
 | 項目 | 内容 |
@@ -161,4 +165,5 @@ gcloud services enable cloudbuild.googleapis.com artifactregistry.googleapis.com
 
 ## 関連ドキュメント
 
-同ディレクトリ内の `要求定義.md`・`要件定義.md`・`技術定義.md` 等を参照。
+- 同ディレクトリ内の `要求定義.md`・`要件定義.md`・`技術定義.md` 等
+- [docs/auth-incident-retrospective.md](./docs/auth-incident-retrospective.md)（認証・本番ドメインまわりの障害整理）
