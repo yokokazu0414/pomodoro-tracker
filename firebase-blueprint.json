@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "PomodoroSession": {
+      "title": "PomodoroSession",
+      "description": "A completed pomodoro session.",
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Unique identifier for the session."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns this session."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the session in YYYY-MM-DD format."
+        },
+        "started_at": {
+          "type": "string",
+          "description": "The start time of the session in ISO 8601 format."
+        },
+        "ended_at": {
+          "type": "string",
+          "description": "The end time of the session in ISO 8601 format."
+        },
+        "planned_minutes": {
+          "type": "number",
+          "description": "The planned duration of the session in minutes."
+        },
+        "task": {
+          "type": "string",
+          "description": "The task the user worked on."
+        },
+        "reflection": {
+          "type": "string",
+          "description": "A short reflection on the session."
+        },
+        "rank": {
+          "type": "string",
+          "enum": ["A", "B", "C"],
+          "description": "The self-evaluated rank of the session."
+        }
+      },
+      "required": ["session_id", "userId", "date", "started_at", "ended_at", "planned_minutes", "task", "reflection", "rank"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/PomodoroSession"
+      },
+      "description": "Stores the pomodoro sessions for a specific user."
+    }
+  }
+}

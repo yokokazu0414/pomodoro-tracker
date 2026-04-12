@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{userId}/sessions
+    // Document ID: {sessionId}
+    // Fields:
+    //   - session_id: string (required, must match document ID)
+    //   - userId: string (required, must match {userId} path)
+    //   - date: string (required, YYYY-MM-DD format)
+    //   - started_at: string (required, ISO 8601 format)
+    //   - ended_at: string (required, ISO 8601 format)
+    //   - planned_minutes: number (required, positive)
+    //   - task: string (required, max 200 chars)
+    //   - reflection: string (required, 1-200 chars)
+    //   - rank: string (required, 'A', 'B', or 'C')
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidSession(userId, sessionId) {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['session_id', 'userId', 'date', 'started_at', 'ended_at', 'planned_minutes', 'task', 'reflection', 'rank']) &&
+             data.session_id == sessionId &&
+             data.userId == userId &&
+             data.date is string && data.date.size() == 10 &&
+             data.started_at is string && data.started_at.size() >= 20 && data.started_at.size() <= 30 &&
+             data.ended_at is string && data.ended_at.size() >= 20 && data.ended_at.size() <= 30 &&
+             data.planned_minutes is number && data.planned_minutes > 0 &&
+             isValidStringLength('task', 1, 200) &&
+             isValidStringLength('reflection', 1, 200) &&
+             data.rank in ['A', 'B', 'C'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId}/sessions/{sessionId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSession(userId, sessionId);
+      allow update: if isOwner(userId) && isValidSession(userId, sessionId);
+      allow delete: if isOwner(userId);
+    }
+  }
+}
