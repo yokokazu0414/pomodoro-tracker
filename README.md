@@ -124,6 +124,22 @@ npm run preview
 npm run lint
 ```
 
+## Cloud Run へデプロイ
+
+本リポジトリの **Vite ビルド＋nginx** をソースからビルドしてデプロイする（AI Studio の古いコンテナを置き換えるときに使う）。
+
+前提: `gcloud` ログイン済み、プロジェクト `abstract-botany-438907-v2`、`.env.local` に `VITE_*` と `VITE_FIRESTORE_DATABASE_ID` が入っている。
+
+```bash
+./scripts/deploy-cloud-run.sh
+```
+
+初回は Cloud Build API の有効化が必要になることがある:
+
+```bash
+gcloud services enable cloudbuild.googleapis.com artifactregistry.googleapis.com --project=abstract-botany-438907-v2
+```
+
 ## データ仕様（概要）
 
 - セッション保存時: `task` は **1〜200 文字**、振り返り `reflection` も **1〜200 文字**（Firestore ルールと UI で一致）。
