@@ -1,12 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
+  initializeAuth,
   GoogleAuthProvider,
   signInWithRedirect,
   signInWithPopup,
   signOut,
   setPersistence,
-  browserLocalPersistence,
+  indexedDBLocalPersistence,
   getRedirectResult,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
@@ -38,7 +39,15 @@ const firebaseConfig = {
 const firestoreDatabaseId = requireEnv('VITE_FIRESTORE_DATABASE_ID');
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+
+/** Safari モバイルのリダイレクト後に localStorage より IndexedDB の方が安定することが多い */
+export const auth = (() => {
+  try {
+    return initializeAuth(app, { persistence: indexedDBLocalPersistence });
+  } catch {
+    return getAuth(app);
+  }
+})();
 auth.languageCode = 'ja';
 
 export const db = getFirestore(app, firestoreDatabaseId);
@@ -88,7 +97,7 @@ export async function loginWithGoogle(): Promise<void> {
   }
   authLoginInFlight = true;
   try {
-    await setPersistence(auth, browserLocalPersistence);
+    await setPersistence(auth, indexedDBLocalPersistence);
 
     const useRedirectFirst =
       !isRunningInIframe() && shouldPreferGoogleRedirectAuth();

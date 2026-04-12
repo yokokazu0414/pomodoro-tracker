@@ -12,7 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
 import { isLikelyInAppBrowser } from '@/lib/browserEnv';
-import { onAuthStateChanged, setPersistence, browserLocalPersistence, User } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  setPersistence,
+  indexedDBLocalPersistence,
+  User,
+} from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 
 export default function App() {
@@ -25,9 +30,10 @@ export default function App() {
 
     void (async () => {
       try {
-        // リダイレクト復帰直後も persistence を揃えてから getRedirectResult（モバイル Safari で順序依存の不整合を防ぐ）
-        await setPersistence(auth, browserLocalPersistence);
+        await setPersistence(auth, indexedDBLocalPersistence);
         await consumeGoogleRedirectResultOnce();
+        // リダイレクト処理・IndexedDB 復元が終わるまで待つ（待たないと onAuthStateChanged が一瞬 null になりログイン画面に戻る）
+        await auth.authStateReady();
       } catch (err: unknown) {
         console.error('[Auth] getRedirectResult', err);
         alert(formatFirebaseAuthHelp(err));
