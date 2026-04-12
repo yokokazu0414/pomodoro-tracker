@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { auth, loginWithGoogle, logout, consumeGoogleRedirectResultOnce, isRunningInIframe } from '@/lib/firebase';
 import { formatFirebaseAuthHelp } from '@/lib/authErrors';
 import { isLikelyInAppBrowser } from '@/lib/browserEnv';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, setPersistence, browserLocalPersistence, User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 
 export default function App() {
@@ -21,17 +21,24 @@ export default function App() {
   const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
+    let unsubscribe: (() => void) | undefined;
 
-    consumeGoogleRedirectResultOnce().catch((err: unknown) => {
-      console.error('[Auth] getRedirectResult', err);
-      alert(formatFirebaseAuthHelp(err));
-    });
+    void (async () => {
+      try {
+        // リダイレクト復帰直後も persistence を揃えてから getRedirectResult（モバイル Safari で順序依存の不整合を防ぐ）
+        await setPersistence(auth, browserLocalPersistence);
+        await consumeGoogleRedirectResultOnce();
+      } catch (err: unknown) {
+        console.error('[Auth] getRedirectResult', err);
+        alert(formatFirebaseAuthHelp(err));
+      }
+      unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+        setLoading(false);
+      });
+    })();
 
-    return () => unsubscribe();
+    return () => unsubscribe?.();
   }, []);
 
   const handleLogin = () => {
@@ -53,7 +60,7 @@ export default function App() {
           <p className="text-sm text-rose-700/80">
             {isRunningInIframe()
               ? '埋め込み表示の場合はポップアップでログインします。うまくいかない場合は新しいタブで開いてください。'
-              : 'ボタンを押すと Google のログイン画面が開きます（ポップアップ）。ブロックされる場合は自動で別方式に切り替わります。'}
+              : 'スマホでは Google に一度遷移してからアプリに戻ります。戻った直後は数秒「Loading...」のままになることがあります。'}
           </p>
           {typeof window !== 'undefined' && isLikelyInAppBrowser() && (
             <p className="text-xs text-left rounded-lg bg-red-50 border border-red-200 text-red-950 px-3 py-2 leading-relaxed">
