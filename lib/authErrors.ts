@@ -26,11 +26,18 @@ export function formatFirebaseAuthHelp(err: unknown): string {
   const lines: string[] = [`${message}`, '', `（Firebase コード: ${code || '不明'}）`];
 
   if (messageLooksLikeGoogleBlockedInWebView(message)) {
-    lines.push('', '【スマホで「The requested action is invalid」が出る場合】');
-    lines.push('Google は LINE・Instagram・X 等の「アプリ内ブラウザ」でのログインを拒否することがあります。');
-    lines.push('① 画面右上の「…」から「Safari で開く」「Chrome で開く」を選ぶ');
-    lines.push('② または URL をコピーし、Safari / Chrome を直接起動して貼り付け');
-    lines.push('③ それでもダメなら、OAuth 同意画面の「テストユーザー」に自分の Gmail を入れているか確認（テストモード時）');
+    const authDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined;
+    lines.push('', '【「The requested action is invalid」が出る場合】');
+    lines.push(
+      'アドレスが *.firebaseapp.com の白画面だけなら、API キーの「HTTP リファラー」に Cloud Run だけでなく次も必須: https://<authDomain>/*',
+    );
+    if (authDomain) {
+      lines.push(`   例: https://${authDomain}/*（Google ログインは OAuth 途中でこのホストに戻る）`);
+    }
+    lines.push('');
+    lines.push('アプリ内ブラウザの場合: LINE / Instagram / X 等では Google が拒否することがあります。');
+    lines.push('① 「…」から Safari / Chrome で開く ② URL をコピーしてトップレベルのブラウザに貼る');
+    lines.push('③ OAuth 同意画面がテストモードなら、テストユーザーに自分の Gmail を追加');
     lines.push('');
   }
 
@@ -48,7 +55,8 @@ export function formatFirebaseAuthHelp(err: unknown): string {
     lines.push(`   →「承認済みの JavaScript 生成元」に追加: ${origin}`);
     lines.push('');
     lines.push('3) 同じ「認証情報」の「API キー」でブラウザキーを開き、');
-    lines.push(`   リファラー制限に ${origin}/* が含まれるか確認（キー再生成後に漏れがち）。`);
+    lines.push(`   リファラー制限に ${origin}/* と、Firebase の auth 用 https://<authDomain>/* の両方があるか確認。`);
+    lines.push('   auth ドメインは Firebase Console → プロジェクトの設定 → 全般 の「ウェブ API キー」付近のドメインと一致させる。');
     lines.push('');
     lines.push('4) 保存後、数分待ってからブラウザを再読み込みして再試行。');
   }

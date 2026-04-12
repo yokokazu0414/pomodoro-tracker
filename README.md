@@ -68,19 +68,24 @@ Firebase（Identity Platform）の **承認済みドメイン** と、Google Clo
    が **JavaScript 生成元** に含まれているか確認する（Firebase のドメイン一覧だけでは足りない）。
 
 2. **ブラウザ用 API キーの「アプリケーションの制限」**  
-   キーをローテーションしたあと、**HTTP リファラー（ウェブサイト）** に  
-   `https://pomodoro-tracker-267724445152.us-west1.run.app/*`  
-   を含めているか確認する。`localhost` や `*.firebaseapp.com` だけだと、Cloud Run のオリジンからの呼び出しが拒否されることがある。
+   キーをローテーションしたあと、**HTTP リファラー（ウェブサイト）** に次の **両方** を含める（どちらか一方だけだとログイン途中で落ちる）。  
+   - アプリの URL: `https://pomodoro-tracker-267724445152.us-west1.run.app/*`（実際の Cloud Run URL に合わせる）  
+   - **Firebase の auth ドメイン**（Google ログインのリダイレクト先）: `https://<VITE_FIREBASE_AUTH_DOMAIN>/*`（例: `https://my-project-id.firebaseapp.com/*`）  
+   Cloud Run だけ許可して `*.firebaseapp.com` を入れていないと、Safari でもアドレスバーが `…firebaseapp.com` の白画面に **「The requested action is invalid」** だけ出ることがある。
 
 3. **ブラウザの開発者ツール（F12）→ Console / Network**  
    ログイン直後に `400` / `403` / `API key not valid` / `idpiframe` などが出ていないか確認する。表示されたエラー文が次の手掛かりになる。
 
 ### スマホで「The requested action is invalid」
 
-Google は **LINE・Instagram・X（Twitter）等のアプリ内ブラウザ（埋め込み WebView）** からの OAuth ログインを拒否することが多く、この文言が出る。
+**アドレスバーが `（プロジェクトID）.firebaseapp.com` の白い画面だけ**のときは、まず **API キーの HTTP リファラー** を疑う。Google ログインは OAuth 処理の途中で必ずこのホストに一度戻るため、リファラーを Cloud Run だけに絞ると **本物の Safari でも** このエラーになる。  
+[Google Cloud Console](https://console.cloud.google.com/) → **API とサービス** → **認証情報** → ブラウザ用 **API キー** → **アプリケーションの制限** → **HTTP リファラー** に  
+`https://<VITE_FIREBASE_AUTH_DOMAIN と同じホスト>/*`（例: `https://my-project-id.firebaseapp.com/*`）を追加する。
 
-- リンクを **Safari** または **Chrome** で開く（アプリの「…」メニューから「Safari で開く」等）。
-- 既に Safari で開いているのに失敗する場合は、**OAuth 同意画面がテストモード**で、自分の Google アカウントがテストユーザーに入っていないケースもある（Google Cloud Console → OAuth 同意画面）。
+上記を直したあとでも、次が当てはまる場合がある。
+
+- **LINE・Instagram・X 等のアプリ内ブラウザ** から開いている（埋め込み WebView では Google が拒否することがある）→ Safari / Chrome で URL を直接開く。
+- **OAuth 同意画面がテストモード**で、自分の Google アカウントが **テストユーザー** に入っていない（Google Cloud Console → OAuth 同意画面）。
 
 ## 前提
 
