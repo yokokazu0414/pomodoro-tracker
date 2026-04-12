@@ -34,6 +34,8 @@ export default function App() {
   const [signingIn, setSigningIn] = useState(false);
   const inAppBrowser =
     typeof window !== 'undefined' && isLikelyInAppBrowser();
+  const iosDevice =
+    typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -162,6 +164,17 @@ export default function App() {
               ? '埋め込み表示の場合はポップアップでログインします。うまくいかない場合は新しいタブで開いてください。'
               : 'スマホでは Google に一度遷移してから戻ります。戻った直後は数秒 Loading のままになることがあります。'}
           </p>
+          {iosDevice && !inAppBrowser && (
+            <div className="text-left space-y-2 rounded-lg bg-sky-50 border border-sky-200 text-sky-950 px-3 py-3 text-xs leading-relaxed">
+              <p className="font-semibold text-sm">iPhone / iPad: <code className="text-xs">firebaseapp.com</code> で止まる場合</p>
+              <p>
+                途中で URL が <code className="break-all bg-white/80 px-1 rounded">…firebaseapp.com</code> のまま白い画面・青いプログレスバーだけが続く、または最後に「The requested action is invalid」になるときは、<strong>本体 Safari ではない埋め込み表示</strong>のことが多いです（左上に「×」・画面下にコンパス「Safari で開く」がある画面）。
+              </p>
+              <p>
+                <strong>コンパスをタップして Safari で開き直す</strong>か、下の URL コピーと同様に<strong>アドレスを Safari に貼って</strong>から、もう一度「Sign in with Google」を試してください。
+              </p>
+            </div>
+          )}
           {inAppBrowser && (
             <div className="text-left space-y-3 rounded-lg bg-red-50 border border-red-200 text-red-950 px-3 py-3 leading-relaxed">
               <p className="text-sm font-semibold">アプリ内ブラウザです（LINE / Instagram 等）</p>
