@@ -10,6 +10,8 @@ interface TimerState {
   startedAt: string | null;
   sessionId: string | null;
   targetEndTime: number | null;
+  /** タイマーが 0 になった瞬間／早期終了クリック時。振り返りモーダル入力の遅れを ended_at に含めない */
+  workEndedAt: string | null;
 }
 
 interface TimerContextType extends TimerState {
@@ -32,6 +34,7 @@ const defaultState: TimerState = {
   startedAt: null,
   sessionId: null,
   targetEndTime: null,
+  workEndedAt: null,
 };
 
 const STORAGE_KEY = 'pomodoro_timer_state';
@@ -41,13 +44,19 @@ function loadState(): TimerState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved) as Partial<TimerState>;
-      const merged = { ...defaultState, ...parsed };
-      
+      const merged = { ...defaultState, ...parsed, workEndedAt: parsed.workEndedAt ?? null } as TimerState;
+
       if (merged.status === 'running' && merged.targetEndTime) {
         const now = Date.now();
         const remaining = Math.max(0, Math.round((merged.targetEndTime - now) / 1000));
         if (remaining === 0) {
-          return { ...merged, status: 'finished', timeLeft: 0, targetEndTime: null };
+          return {
+            ...merged,
+            status: 'finished',
+            timeLeft: 0,
+            targetEndTime: null,
+            workEndedAt: new Date().toISOString(),
+          };
         } else {
           return { ...merged, timeLeft: remaining };
         }
@@ -77,7 +86,14 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
         if (remaining <= 0) {
           clearInterval(interval);
-          setState(prev => ({ ...prev, status: 'finished', timeLeft: 0, targetEndTime: null }));
+          const endIso = new Date().toISOString();
+          setState(prev => ({
+            ...prev,
+            status: 'finished',
+            timeLeft: 0,
+            targetEndTime: null,
+            workEndedAt: endIso,
+          }));
         } else {
           setState(prev => ({ ...prev, timeLeft: remaining }));
         }
@@ -104,7 +120,7 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const startedAt = new Date().toISOString();
       const sessionId = crypto.randomUUID();
       const targetEndTime = Date.now() + prev.timeLeft * 1000;
-      return { ...prev, status: 'running', startedAt, sessionId, targetEndTime };
+      return { ...prev, status: 'running', startedAt, sessionId, targetEndTime, workEndedAt: null };
     });
   };
 
@@ -127,15 +143,27 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       startedAt: null,
       sessionId: null,
       targetEndTime: null,
+      workEndedAt: null,
     }));
   };
 
   const finishTimer = () => {
-    setState(prev => ({ ...prev, status: 'finished', timeLeft: 0, targetEndTime: null }));
+    setState(prev => ({
+      ...prev,
+      status: 'finished',
+      timeLeft: 0,
+      targetEndTime: null,
+      workEndedAt: new Date().toISOString(),
+    }));
   };
 
   const finishEarly = () => {
-    setState(prev => ({ ...prev, status: 'finished', targetEndTime: null }));
+    setState(prev => ({
+      ...prev,
+      status: 'finished',
+      targetEndTime: null,
+      workEndedAt: new Date().toISOString(),
+    }));
   };
 
   const clearSession = () => {
@@ -147,6 +175,7 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       startedAt: null,
       sessionId: null,
       targetEndTime: null,
+      workEndedAt: null,
     }));
   };
 

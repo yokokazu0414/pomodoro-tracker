@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="tomato">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fb7185"/>
+      <stop offset="100%" style="stop-color:#e11d48"/>
+    </linearGradient>
+  </defs>
+  <!-- calyx -->
+  <path fill="#15803d" d="M14 3 L16 6 L18 3 L17 6 L20 5 L17 8 L19 10 L16 9 L16 12 L14 9 L11 10 L13 8 L10 5 L13 6 Z"/>
+  <!-- fruit -->
+  <ellipse cx="16" cy="19" rx="11" ry="10" fill="url(#g)"/>
+  <ellipse cx="12" cy="17" rx="2" ry="1.2" fill="#fda4af" opacity="0.55"/>
+</svg>

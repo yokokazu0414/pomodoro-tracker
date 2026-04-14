@@ -1,17 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, subDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { SessionEditorDialog, type SessionRecord } from '@/components/SessionEditorDialog';
 
 type Period = 'daily' | 'weekly' | 'monthly';
+
+function toSessionRecord(s: Record<string, unknown>, uid: string): SessionRecord | null {
+  const id = typeof s.session_id === 'string' ? s.session_id : '';
+  if (!id) return null;
+  return {
+    session_id: id,
+    userId: typeof s.userId === 'string' ? s.userId : uid,
+    date: typeof s.date === 'string' ? s.date : '',
+    started_at: typeof s.started_at === 'string' ? s.started_at : '',
+    ended_at: typeof s.ended_at === 'string' ? s.ended_at : '',
+    planned_minutes: typeof s.planned_minutes === 'number' ? s.planned_minutes : 25,
+    task: typeof s.task === 'string' ? s.task : '',
+    reflection: typeof s.reflection === 'string' ? s.reflection : '',
+    rank: s.rank === 'A' || s.rank === 'B' || s.rank === 'C' ? s.rank : 'B',
+  };
+}
 
 export function Dashboard() {
   const [period, setPeriod] = useState<Period>('daily');
   const [sessions, setSessions] = useState<any[]>([]);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
+  const [editorInitial, setEditorInitial] = useState<SessionRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SessionRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -101,6 +125,34 @@ export function Dashboard() {
     return `${diffMins}m ${diffSecs}s`;
   };
 
+  const uid = auth.currentUser?.uid;
+  const openCreate = () => {
+    setEditorMode('create');
+    setEditorInitial(null);
+    setEditorOpen(true);
+  };
+  const openEdit = (session: Record<string, unknown>) => {
+    if (!uid) return;
+    const rec = toSessionRecord(session, uid);
+    if (!rec) return;
+    setEditorMode('edit');
+    setEditorInitial(rec);
+    setEditorOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!uid || !deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteDoc(doc(db, `users/${uid}/sessions`, deleteTarget.session_id));
+      setDeleteTarget(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-4">
       <div className="grid gap-4 md:grid-cols-2">
@@ -149,8 +201,17 @@ export function Dashboard() {
       </Card>
 
       <Card className="border-rose-100 shadow-sm rounded-2xl">
-        <CardHeader>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-rose-700">Recent History</CardTitle>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="rounded-xl border-rose-200 text-rose-800 hover:bg-rose-50"
+            onClick={openCreate}
+          >
+            手動で追加（忘れた分）
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="rounded-xl border border-rose-100 overflow-hidden">
@@ -159,11 +220,14 @@ export function Dashboard() {
                 <TableRow className="hover:bg-transparent border-rose-100">
                   <TableHead className="text-rose-800 font-semibold">Date</TableHead>
                   <TableHead className="text-rose-800 font-semibold">Pomo #</TableHead>
+                  <TableHead className="text-rose-800 font-semibold">Task</TableHead>
                   <TableHead className="text-rose-800 font-semibold">From</TableHead>
                   <TableHead className="text-rose-800 font-semibold">To</TableHead>
                   <TableHead className="text-rose-800 font-semibold">Duration</TableHead>
+                  <TableHead className="text-rose-800 font-semibold">Plan</TableHead>
                   <TableHead className="text-rose-800 font-semibold">Rank</TableHead>
                   <TableHead className="text-rose-800 font-semibold">Reflection</TableHead>
+                  <TableHead className="text-rose-800 font-semibold w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -171,9 +235,13 @@ export function Dashboard() {
                   <TableRow key={session.session_id} className="border-rose-100/50 hover:bg-rose-50/30">
                     <TableCell className="font-medium text-foreground">{format(new Date(session.started_at), 'MM/dd')}</TableCell>
                     <TableCell className="text-muted-foreground">#{pomoNumbers[session.session_id]}</TableCell>
+                    <TableCell className="max-w-[100px] truncate text-muted-foreground text-xs" title={session.task}>
+                      {session.task}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(session.started_at), 'HH:mm')}</TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(session.ended_at), 'HH:mm')}</TableCell>
                     <TableCell className="text-muted-foreground">{getDuration(session.started_at, session.ended_at)}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{session.planned_minutes}m</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold
                         ${session.rank === 'A' ? 'bg-green-100 text-green-700' : 
@@ -182,15 +250,35 @@ export function Dashboard() {
                         {session.rank}
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-muted-foreground" title={session.reflection}>
+                    <TableCell className="max-w-[140px] truncate text-muted-foreground text-xs" title={session.reflection}>
                       {session.reflection}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="flex flex-wrap gap-1">
+                        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs rounded-lg" onClick={() => openEdit(session)}>
+                          編集
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                          onClick={() => {
+                            if (!uid) return;
+                            const rec = toSessionRecord(session, uid);
+                            if (rec) setDeleteTarget(rec);
+                          }}
+                        >
+                          削除
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
                 {displaySessions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      No sessions yet. Let's start a Pomodoro! 🍅
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      No sessions yet. Let&apos;s start a Pomodoro! 🍅
                     </TableCell>
                   </TableRow>
                 )}
@@ -199,6 +287,36 @@ export function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {uid && (
+        <SessionEditorDialog
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          userId={uid}
+          mode={editorMode}
+          initial={editorInitial}
+        />
+      )}
+
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-[360px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>セッションを削除</DialogTitle>
+            <DialogDescription>
+              {deleteTarget?.task ? `「${deleteTarget.task.slice(0, 40)}${deleteTarget.task.length > 40 ? '…' : ''}」を` : 'この記録を'}
+              削除します。元に戻せません。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setDeleteTarget(null)}>
+              キャンセル
+            </Button>
+            <Button type="button" variant="destructive" className="rounded-xl" disabled={deleting} onClick={() => void confirmDelete()}>
+              {deleting ? '削除中…' : '削除する'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

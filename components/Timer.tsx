@@ -28,17 +28,16 @@ export function Timer() {
     resetTimer,
     finishEarly,
     clearSession,
+    workEndedAt,
   } = useTimer();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [reflection, setReflection] = useState('');
   const [rank, setRank] = useState<'A' | 'B' | 'C' | ''>('');
-  const [actualEndedAt, setActualEndedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'finished' && !isModalOpen) {
-      setActualEndedAt(new Date().toISOString());
       setIsModalOpen(true);
       playChime();
     }
@@ -63,7 +62,8 @@ export function Timer() {
   };
 
   const handleSaveSession = async () => {
-    if (!rank || !sessionId || !startedAt || !actualEndedAt) return;
+    if (!rank || !sessionId || !startedAt) return;
+    const endedAt = workEndedAt ?? new Date().toISOString();
 
     const user = auth.currentUser;
     if (!user) return;
@@ -77,7 +77,7 @@ export function Timer() {
         userId: user.uid,
         date,
         started_at: startedAt,
-        ended_at: actualEndedAt,
+        ended_at: endedAt,
         planned_minutes: plannedMinutes,
         task: task.trim(),
         reflection: reflection.trim(),
@@ -90,7 +90,6 @@ export function Timer() {
     setIsModalOpen(false);
     setReflection('');
     setRank('');
-    setActualEndedAt(null);
     clearSession();
   };
 
@@ -103,7 +102,6 @@ export function Timer() {
     setIsModalOpen(false);
     setReflection('');
     setRank('');
-    setActualEndedAt(null);
     clearSession();
   };
 
