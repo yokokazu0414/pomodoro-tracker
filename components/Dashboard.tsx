@@ -1,7 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, doc, deleteDoc } from 'firebase/firestore';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, subDays } from 'date-fns';
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  subDays,
+  startOfDay,
+  endOfDay,
+  subMonths,
+} from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -26,6 +37,28 @@ function toSessionRecord(s: Record<string, unknown>, uid: string): SessionRecord
     reflection: typeof s.reflection === 'string' ? s.reflection : '',
     rank: s.rank === 'A' || s.rank === 'B' || s.rank === 'C' ? s.rank : 'B',
   };
+}
+
+/** 上部グラフ（Activity Trend）と同じ期間の開始・終了（started_at で判定） */
+function getChartRangeBounds(period: Period, now: Date): { start: Date; end: Date } {
+  if (period === 'daily') {
+    return { start: startOfDay(subDays(now, 6)), end: endOfDay(now) };
+  }
+  if (period === 'weekly') {
+    return {
+      start: startOfWeek(subDays(now, 21), { weekStartsOn: 1 }),
+      end: endOfWeek(now, { weekStartsOn: 1 }),
+    };
+  }
+  return {
+    start: startOfMonth(subMonths(now, 5)),
+    end: endOfMonth(now),
+  };
+}
+
+function sessionStartedInRange(session: { started_at?: string }, start: Date, end: Date): boolean {
+  const sd = new Date(session.started_at ?? '');
+  return !Number.isNaN(sd.getTime()) && sd >= start && sd <= end;
 }
 
 export function Dashboard() {
@@ -104,18 +137,33 @@ export function Dashboard() {
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const todayCount = sessions.filter(s => s.date === todayStr).length;
 
-  // Pomo # の計算
-  const sortedSessions = [...sessions].sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
-  const pomoNumbers: Record<string, number> = {};
-  const dailyCounts: Record<string, number> = {};
-  
-  sortedSessions.forEach(s => {
-    const date = s.date;
-    dailyCounts[date] = (dailyCounts[date] || 0) + 1;
-    pomoNumbers[s.session_id] = dailyCounts[date];
-  });
+  const sortedSessions = useMemo(
+    () => [...sessions].sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()),
+    [sessions]
+  );
 
-  const displaySessions = [...sortedSessions].reverse();
+  const pomoNumbers = useMemo(() => {
+    const map: Record<string, number> = {};
+    const dailyCounts: Record<string, number> = {};
+    sortedSessions.forEach((s) => {
+      const date = s.date;
+      dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+      map[s.session_id] = dailyCounts[date];
+    });
+    return map;
+  }, [sortedSessions]);
+
+  const displaySessions = useMemo(() => [...sortedSessions].reverse(), [sortedSessions]);
+
+  const { rangeStart, rangeEnd, tableSessions } = useMemo(() => {
+    const now = new Date();
+    const { start, end } = getChartRangeBounds(period, now);
+    return {
+      rangeStart: start,
+      rangeEnd: end,
+      tableSessions: displaySessions.filter((s) => sessionStartedInRange(s, start, end)),
+    };
+  }, [displaySessions, period]);
 
   const getDuration = (start: string, end: string) => {
     const diffMs = new Date(end).getTime() - new Date(start).getTime();
@@ -202,7 +250,12 @@ export function Dashboard() {
 
       <Card className="border-rose-100 shadow-sm rounded-2xl">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-          <CardTitle className="text-rose-700">Recent History</CardTitle>
+          <div>
+            <CardTitle className="text-rose-700">Session History</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              グラフと同じ期間（{format(rangeStart, 'MM/dd')}〜{format(rangeEnd, 'MM/dd')}）· {tableSessions.length} 件
+            </p>
+          </div>
           <Button
             type="button"
             size="sm"
@@ -215,23 +268,26 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="rounded-xl border border-rose-100 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-rose-50/50">
+            <Table
+              className="min-w-[920px]"
+              containerClassName="max-h-[min(70vh,640px)] overflow-auto overscroll-contain"
+            >
+              <TableHeader className="bg-rose-50/50 sticky top-0 z-10 shadow-[0_1px_0_0_rgb(255_228_230)]">
                 <TableRow className="hover:bg-transparent border-rose-100">
-                  <TableHead className="text-rose-800 font-semibold">Date</TableHead>
-                  <TableHead className="text-rose-800 font-semibold">Pomo #</TableHead>
-                  <TableHead className="text-rose-800 font-semibold">Task</TableHead>
-                  <TableHead className="text-rose-800 font-semibold">From</TableHead>
-                  <TableHead className="text-rose-800 font-semibold">To</TableHead>
-                  <TableHead className="text-rose-800 font-semibold">Duration</TableHead>
-                  <TableHead className="text-rose-800 font-semibold">Plan</TableHead>
-                  <TableHead className="text-rose-800 font-semibold">Rank</TableHead>
-                  <TableHead className="text-rose-800 font-semibold">Reflection</TableHead>
-                  <TableHead className="text-rose-800 font-semibold w-[120px]">Actions</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">Date</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">Pomo #</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">Task</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">From</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">To</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">Duration</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">Plan</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">Rank</TableHead>
+                  <TableHead className="text-rose-800 font-semibold bg-rose-50/95">Reflection</TableHead>
+                  <TableHead className="text-rose-800 font-semibold w-[120px] bg-rose-50/95">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displaySessions.slice(0, 10).map((session) => (
+                {tableSessions.map((session) => (
                   <TableRow key={session.session_id} className="border-rose-100/50 hover:bg-rose-50/30">
                     <TableCell className="font-medium text-foreground">{format(new Date(session.started_at), 'MM/dd')}</TableCell>
                     <TableCell className="text-muted-foreground">#{pomoNumbers[session.session_id]}</TableCell>
@@ -275,10 +331,17 @@ export function Dashboard() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {displaySessions.length === 0 && (
+                {sessions.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       No sessions yet. Let&apos;s start a Pomodoro! 🍅
+                    </TableCell>
+                  </TableRow>
+                )}
+                {sessions.length > 0 && tableSessions.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      この期間にセッションはありません。グラフ上の Daily / Weekly / Monthly を切り替えてください。
                     </TableCell>
                   </TableRow>
                 )}
